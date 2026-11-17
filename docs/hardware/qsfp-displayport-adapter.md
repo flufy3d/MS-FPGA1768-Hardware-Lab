@@ -43,7 +43,7 @@ Arria 10 (U1)                  card                        adapter
                                                 └───────────────────────────┘
 ```
 
-The FPGA-to-retimer links are already AC-coupled on the card. Whether the
+The model assumes the FPGA-to-retimer links are already AC-coupled on the card. Whether the
 retimer-to-cage links are also AC-coupled, and whether the adapter must add capacitors,
 must be checked on the schematic and with a scope before layout.
 
@@ -56,8 +56,8 @@ must be checked on the schematic and with a scope before layout.
 - The retimer must pass the DP stream without re-locking. The current working hypothesis
   is raw-data / CDR-bypass mode, with the output mux overridden and the CDR held in reset
   while the rate changes. Exact register names and bit positions must come from the
-  DS250DF810 datasheet, not from this page. The existing rate/CDR notes are in
-  [ethernet-qsfp.md](ethernet-qsfp.md#retimer-configuration-from-the-datasheet--ti-forum).
+  DS250DF810 datasheet, not from this page. The existing rate and CDR notes are in
+  [ethernet-qsfp.md](ethernet-qsfp.md).
 - The QSFP+ `Tx1..Tx4` pairs are host outputs. Use the lane order that matches the
   board's FPGA → retimer → cage mapping; it is not sequential. See the QSFP sheet in
   [FPGA_Pinouts.xlsx](../../hardware/pinouts/FPGA_Pinouts.xlsx).
