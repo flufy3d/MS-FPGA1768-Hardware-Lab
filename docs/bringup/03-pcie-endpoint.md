@@ -25,8 +25,10 @@ BAR you control, then poke it from the host.
 
 See [lab-log/2026-11-17-pcie-pio.md](../../lab-log/2026-11-17-pcie-pio.md) for the full
 timeline and the recovery checklist. The next attempt must cold-start the card, confirm
-BAR0 is assigned, and use Linux `pcimem` or another tool that validates the BAR before
-writing.
+BAR0 is assigned, and use the custom KMDF driver in
+[`projects/02_pcie_pio/driver`](../../projects/02_pcie_pio/driver/) (preferred; handles
+64-bit BARs) or Linux `pcimem`. The KMDF driver is already built and test-signed;
+loading awaits the Secure Boot change.
 
 ## Design
 
@@ -87,7 +89,7 @@ test.
 
 - PCIe hard IP trains at the expected width/speed.
 - The host can enumerate and access a BAR.
-- The FPGA design is running (LEDs reflect host writes).
+- The FPGA design is running (a readable ID/counter or LED reflects host access).
 
 ## Gotchas
 
@@ -106,9 +108,11 @@ test.
   it.
 - If the link trains at Gen1 only, check the refclk and the `LTSSM` state in the HIP debug
   registers.
-- Windows requires a signed driver; use Linux VFIO or the Altera PCI API driver from the
-  thinkoco repo for Windows. For a one-off BAR test, Linux `pcimem` is safer than a
-  Windows kernel driver.
+- Windows requires a signed driver; use Linux VFIO, the Altera PCI API driver, or the
+  lab's own KMDF test driver in
+  [`projects/02_pcie_pio/driver`](../../projects/02_pcie_pio/driver/). The lab driver
+  maps 64-bit BARs, validates the design ID before writes, and requires test signing
+  with Secure Boot disabled. Linux `pcimem` remains a safe alternative.
 
 ## Next
 

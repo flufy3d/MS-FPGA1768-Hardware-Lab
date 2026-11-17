@@ -151,6 +151,23 @@ for pure RTL, which is why a hello-world build succeeds; projects that instantia
 core/Platform Designer component, then verify `<install>\qsys\bin\qsys-generate.exe`.
 See [toolchain/quartus-install.md](toolchain/quartus-install.md#2b-platform-designer-required-for-ip).
 
+## Windows test driver will not load
+
+The lab's KMDF BAR0 test driver is in
+[`projects/02_pcie_pio/driver`](../projects/02_pcie_pio/driver/). It is
+self-signed, so it only loads with **Secure Boot disabled** and **test signing
+enabled**:
+
+```powershell
+Confirm-SecureBootUEFI      # must be False
+bcdedit /enum {current}     # must show testsigning Yes
+signtool verify /pa projects\02_pcie_pio\driver\build\pcie_bar.cat
+```
+
+If the device shows code 52 (`CM_PROB_UNSIGNED_DRIVER`), the signature or test
+signing state is wrong. If it shows code 10/39, the driver started but failed;
+check Event Viewer and the device's problem code.
+
 ## Licence errors
 
 ```

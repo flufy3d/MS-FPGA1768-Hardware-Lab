@@ -6,7 +6,7 @@ Quartus projects maintained in this repository. Each project is self-contained: 
 | Project | What it does | Status |
 |---------|--------------|--------|
 | [01_hello_world](01_hello_world/) | 1 Hz heartbeat + 8-bit seconds counter on the LEDs | verified on hardware |
-| [02_pcie_pio](02_pcie_pio/) | x8 Gen3 PCIe endpoint with a BAR0 compute register (`A + B`) | built and enumerated; BAR test pending |
+| [02_pcie_pio](02_pcie_pio/) | x8 Gen3 PCIe endpoint with a BAR0 compute register (`A + B`) | built and enumerated; Windows test driver signed; BAR test pending |
 | 03_ddr4_dual | both DDR4 channels with calibration status | planned (start from the upstream DDR4_Dual project) |
 
 ## Creating a new project

@@ -13,7 +13,7 @@ the LED pins, and this project is about BAR0 MMIO and FPGA-side computation.
 | Hard IP | Arria 10 PCIe HIP, Avalon-MM with DMA, 256-bit, BAR0 64 KB |
 | Vendor / device ID | `0x1172` / `0xE003` |
 | Configuration | volatile `.sof` over JTAG, config flash untouched |
-| Status | built, timing met, enumerated; BAR0 compute test pending |
+| Status | built, timing met, enumerated; Windows test driver built/signed; BAR0 compute test pending |
 
 ## Purpose
 
@@ -105,17 +105,24 @@ sudo pcimem /sys/bus/pci/devices/0000:02:00.0/resource0 0x40 r
 
 Read `0x30` twice; the counter must change.
 
-### Windows
+### Windows (custom test driver)
 
-Windows has no in-box user-mode BAR mapping. Do **not** write BAR0 until the
-device has a valid, non-zero BAR address and memory space is enabled. In this lab,
-writing an unassigned BAR0 through RWEverything caused a host bugcheck
-(`0x00000050`). If you use RWEverything, read the config space first and confirm:
+`driver/` contains a KMDF test driver for `PCI\VEN_1172&DEV_E003`. It maps BAR0
+with `MmMapIoSpace` (so 64-bit BAR addresses work), reads the ID register at
+`0x40`, and exposes 32-bit read/write IOCTLs to `user/build/pcie_bar_test.exe`.
+Writes are refused unless the ID matches. The driver requires test signing and
+Secure Boot disabled; see [driver/README.md](driver/README.md) for the build,
+sign, install and uninstall steps.
+
+Do **not** use RWEverything to write BAR0 unless the BAR is assigned and memory
+space is enabled. In this lab, writing an unassigned BAR0 through RWEverything
+was followed by a host bugcheck (`0x00000050`). If you use it, read the config
+space first and confirm:
 
 - command register (`0x04`) has memory space enable set;
 - BAR0 (`0x10`/`0x14`) contains a real base address, not `0x0000000C`.
 
-A Linux live USB with `pcimem` is the safer path.
+A Linux live USB with `pcimem` remains a safe alternative.
 
 ## Expected observation
 
@@ -143,6 +150,7 @@ Wrap test: `A = 0xFFFFFFFF`, `B = 0x00000001` → `SUM = 0x00000000`.
 | `.sof` | 35,938 KB, Quartus checksum `0x307522FB` |
 | SHA-256 | `E592CEC22FDE5B0190E6E285B4BC090C09E7FDB47447B8B287A1A5ABE6F02706` |
 | Programming | 9m53s at 5 MHz TCK |
+| Windows driver | `pcie_bar.sys` built and test-signed; `.cat` signed; loading pending Secure Boot off |
 | Enumeration | `1172:E003` at `02:00.0`, Windows code 28 |
 | Link | Gen2 (5.0 GT/s) x8, max Gen3 (8.0 GT/s) x8 |
 | BAR0 test | **pending** — host bugcheck and card power loss |

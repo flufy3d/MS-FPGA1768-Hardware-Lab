@@ -88,7 +88,7 @@ Start reading here:
 | JTAG | Works after a full **AC power cycle**: `jtagconfig` reports `02E060DD  10AT115S(1|2)`. The FT232H latches after a crashed programmer run and then needs VBUS removed (not just a reboot). |
 | Hello world | **Success (2026-11-17).** `projects/01_hello_world` compiled (23 ALMs, timing met) and was loaded over JTAG in 8m58s. The LEDs show a 1 Hz heartbeat and a binary seconds counter. See the [lab log](lab-log/). |
 | DDR4 | Not yet tested in this lab. Reference designs exist (see [docs/bringup/04-ddr4.md](docs/bringup/04-ddr4.md)). |
-| PCIe endpoint | **Partial (2026-11-17).** `projects/02_pcie_pio` built (Gen3 x8 256-bit, timing met) and enumerated as `1172:E003` at `02:00.0`; link Gen2 x8 (max Gen3 x8). BAR0 compute test blocked by a host bugcheck and card power loss — see the [lab log](lab-log/2026-11-17-pcie-pio.md). |
+| PCIe endpoint | **Partial (2026-11-17).** `projects/02_pcie_pio` built (Gen3 x8 256-bit, timing met) and enumerated as `1172:E003` at `02:00.0`; link Gen2 x8 (max Gen3 x8). BAR0 compute test blocked by a host bugcheck and card power loss; a KMDF test driver is built and test-signed, pending Secure Boot off — see the [lab log](lab-log/2026-11-17-pcie-pio.md). |
 | QSFP / retimer | Not tested in this lab. |
 
 ---
