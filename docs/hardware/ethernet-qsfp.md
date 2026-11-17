@@ -74,6 +74,21 @@ Intel "High Speed Transceiver Demo" that:
 It needs two cards and a QSFP cable to be useful. For single-card testing the retimer I2C
 scan is the first step.
 
+## DisplayPort over the cage (concept)
+
+A separate design study proposes using the four QSFP+ lanes as a DisplayPort 1.2/1.4 main
+link: the retimer is put into raw-data / CDR-bypass mode, a small bridge MCU converts the
+FPGA's I2C commands to 1 Mbps Manchester AUX, and HPD is returned through `IntL`. The
+adapter would use the 3.3 V `VccTx` rail and a full-size DP receptacle.
+
+**Status: unknown — no prototype has been built.** The retimer settings, AUX electrical
+compliance and mechanical fit all need validation. See:
+
+- [qsfp-displayport-adapter.md](qsfp-displayport-adapter.md) — working principle, risks,
+  validation checklist
+- [Interactive 3D assembly](https://flufy3d.github.io/MS-FPGA1768-Hardware-Lab/qsfp-dp-adapter.html)
+  — mechanical envelope, routing study, sleeve STL
+
 ## First steps for a new card
 
 1. Check `ModPrsL` (`AG15`) with a QSFP loopback or cable inserted.

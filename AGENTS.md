@@ -60,6 +60,7 @@ docs/                      written knowledge, organised by topic
   toolchain/               Quartus, drivers, build/program flows
   bringup/                 step-by-step procedures, numbered
   reference/               summaries of prior art and links
+  demo/                    static pages published to GitHub Pages
   troubleshooting.md       symptom -> cause -> fix
 hardware/                  physical artifacts
   pinouts/                 xlsx + generated csv + pinout guide
@@ -81,6 +82,7 @@ Where does a new piece of information go?
 | A new Quartus design | `projects/NN_name/` with its own README |
 | A fix for a tool problem | `docs/toolchain/` and, if it is a symptom, `docs/troubleshooting.md` |
 | A link to someone else's work | `docs/reference/links.md` |
+| An interactive model or demo | `docs/demo/` and `.github/workflows/pages.yml` |
 | A failed experiment | `lab-log/` — failures are data, keep them |
 
 ## 5. Documentation conventions

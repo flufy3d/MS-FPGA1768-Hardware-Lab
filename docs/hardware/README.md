@@ -13,6 +13,7 @@ based on.
 | [ddr4.md](ddr4.md) | two 72-bit DDR4 channels |
 | [pcie.md](pcie.md) | two x8 Gen3 endpoints |
 | [ethernet-qsfp.md](ethernet-qsfp.md) | QSFP+ and DS250DF810 retimer |
+| [qsfp-displayport-adapter.md](qsfp-displayport-adapter.md) | DisplayPort-over-QSFP+ adapter concept (unknown) |
 | [mellanox-nic.md](mellanox-nic.md) | ConnectX ASIC and its links |
 | [i2c.md](i2c.md) | three I2C buses, addresses |
 | [jtag.md](jtag.md) | FT232H programmer, J5 header |

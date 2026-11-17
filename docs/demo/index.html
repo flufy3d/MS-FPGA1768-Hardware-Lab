@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QSFP+ to DisplayPort · MS-FPGA1768 Hardware Lab</title>
+<style>
+  :root {
+    --ink: #17251f;
+    --muted: #5d6f66;
+    --paper: #f5f7f2;
+    --card: #ffffff;
+    --line: #ccd7cf;
+    --green: #244d39;
+    --green-soft: #e3ecdf;
+    --amber: #a86b1e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.55 "Segoe UI", "Inter", Arial, sans-serif;
+  }
+  header {
+    background: #162622;
+    color: #fff;
+    padding: 18px 4vw;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo {
+    width: 26px;
+    height: 26px;
+    border: 2px solid #bbdf83;
+    transform: rotate(-30deg) skewY(12deg);
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .logo::after {
+    content: "";
+    width: 11px;
+    height: 11px;
+    border: 1.5px solid #bbdf83;
+  }
+  header strong { font-size: 18px; letter-spacing: -.5px; }
+  header span {
+    margin-left: auto;
+    color: #c7d5cc;
+    font: 11px/1.4 Consolas, monospace;
+    letter-spacing: .8px;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 46px 22px 60px; }
+  .eyebrow {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font: 11px/1.4 Consolas, monospace;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 5vw, 48px);
+    line-height: 1.04;
+    letter-spacing: -1.8px;
+    font-weight: 640;
+  }
+  .lede {
+    max-width: 720px;
+    margin: 16px 0 0;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 22px;
+    padding: 6px 10px;
+    border: 1px solid #d8c29b;
+    border-radius: 999px;
+    background: #fbf4e7;
+    color: #7a4d13;
+    font: 11px/1.3 Consolas, monospace;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+  }
+  .status i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--amber);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+    margin-top: 34px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 190px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: #7f9c8a; transform: translateY(-2px); }
+  .card:focus-visible { outline: 3px solid #429a84; outline-offset: 3px; }
+  .card .kind {
+    color: #47715b;
+    font: 11px/1.3 Consolas, monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .card h2 {
+    margin: 10px 0 7px;
+    font-size: 20px;
+    line-height: 1.15;
+    letter-spacing: -.5px;
+  }
+  .card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .card .go {
+    margin-top: auto;
+    padding-top: 18px;
+    color: var(--green);
+    font-weight: 650;
+    font-size: 13px;
+  }
+  .card .go::after { content: " →"; }
+  .primary { background: var(--green); border-color: var(--green); color: #fff; }
+  .primary .kind, .primary p { color: #c6dbcd; }
+  .primary .go { color: #d9edc5; }
+  .primary:hover { border-color: #3d7259; }
+  .note {
+    margin-top: 34px;
+    padding: 16px 18px;
+    border-left: 3px solid #b8863c;
+    background: #fbf8ef;
+    color: #5d513c;
+    font-size: 13px;
+  }
+  .note b { color: #40351f; }
+  footer {
+    margin-top: 44px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    color: #718178;
+    font: 11px/1.6 Consolas, monospace;
+  }
+  footer a { color: #376b58; }
+</style>
+
+<header>
+  <i class="logo" aria-hidden="true"></i>
+  <strong>MS-FPGA1768 Hardware Lab</strong>
+  <span>GITHUB PAGES</span>
+</header>
+
+<main>
+  <p class="eyebrow">Interactive assembly study</p>
+  <h1>QSFP+ to DisplayPort</h1>
+  <p class="lede">
+    A concept for driving a standard DisplayPort monitor from the Arria 10 FPGA
+    through the card's QSFP+ cage, using the four transceiver lanes, the DS250DF810
+    retimer in raw-data mode, and a small AUX/HPD bridge on the adapter.
+  </p>
+  <p class="status"><i aria-hidden="true"></i> Concept — not built or tested</p>
+
+  <div class="grid">
+    <a class="card primary" href="qsfp-dp-adapter.html">
+      <span class="kind">3D / WebGL</span>
+      <h2>Open the assembly</h2>
+      <p>Orbit the adapter, x-ray the cage, step through insertion, inspect the AUX bridge and download the TPU sleeve STL.</p>
+      <span class="go">Launch the model</span>
+    </a>
+    <a class="card" href="https://github.com/flufy3d/MS-FPGA1768-Hardware-Lab/blob/main/docs/hardware/qsfp-displayport-adapter.md">
+      <span class="kind">Design note</span>
+      <h2>Read the working principle</h2>
+      <p>Signal paths, retimer bypass, Manchester AUX bridge, HPD, power budget and the validation checklist.</p>
+      <span class="go">Open the note</span>
+    </a>
+    <a class="card" href="https://github.com/flufy3d/MS-FPGA1768-Hardware-Lab">
+      <span class="kind">Repository</span>
+      <h2>Hardware Lab</h2>
+      <p>Pinouts, board facts, Quartus projects, toolchain notes and dated bring-up logs for the Microsoft FPGA 1768.</p>
+      <span class="go">Browse the repo</span>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>This is a nominal envelope study, not a manufacturable design.</b>
+    The model assumes a 1.0 mm PCB, the HDGC DP-GD-119PWB mid-mount socket and
+    host-side AC coupling. Verify every electrical and mechanical assumption against
+    the board and the DisplayPort specification before fabrication.
+  </div>
+
+  <footer>
+    Original content: MIT · three.js r160 bundled under its MIT licence ·
+    Model dimensions in millimetres · <a href="https://github.com/flufy3d/MS-FPGA1768-Hardware-Lab">source</a>
+  </footer>
+</main>
+</html>
