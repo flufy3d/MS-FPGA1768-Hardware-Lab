@@ -68,3 +68,7 @@ projects/02_pcie_pio/ip/pcie_pio_sys/*/
 
 # Quartus temporary clearbox files
 tmp-clearbox/
+
+# Windows test driver build outputs
+projects/02_pcie_pio/driver/build/
+projects/02_pcie_pio/user/build/
