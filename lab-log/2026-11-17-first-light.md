@@ -97,6 +97,27 @@ Purpose: catch the TAP in the window between power-up and configuration.
 - First bitstream: not built, not loaded.
 - JTAG: blocked, root cause not yet isolated.
 
+### Addendum — boot-time scan result
+
+The scheduled task `JtagBootScan` ran on the next cold boot:
+
+```
+LastBootUpTime : 14:48:58
+task start     : 14:49:17   (19 s after power-on)
+FTDI present   : 14:49:18
+attempts       : 1248 in 5 minutes, all rc=3 (TDO stuck)
+```
+
+Conclusion: **inconclusive by construction.** Windows does not run the task until ~19 s
+after power-on, while the FPGA finishes loading its bitstream from flash in well under a
+second. The TAP window, if it exists, is long gone by then.
+
+Side effect: hammering `FT_Open`/`FT_Close` four times per second crashed the FTDI D2XX
+driver and the programmer disappeared from USB (`Present = False`) after the scan. The task
+has been disabled and its rate reduced to one attempt per second.
+
+The card itself returned on PCIe after the cold boot (`1414:B204`, x8).
+
 ### Addendum — ADBUS4-7 experiment (do not repeat blindly)
 
 The FT232H pins ADBUS4-7 are not used by the JTAG plugin. To test whether one of them
