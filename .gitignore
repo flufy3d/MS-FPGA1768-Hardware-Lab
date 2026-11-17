@@ -60,3 +60,11 @@ serv_req_info.txt
 # Quartus 25.1 compiler databases
 dni/
 qdb/
+
+# Platform Designer generated output
+projects/02_pcie_pio/pcie_pio_sys/
+projects/02_pcie_pio/ip/pcie_pio_sys/*/
+*.qsys.legacy
+
+# Quartus temporary clearbox files
+tmp-clearbox/
