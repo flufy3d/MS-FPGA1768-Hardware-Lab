@@ -56,3 +56,7 @@ tmp/
 
 # Quartus crash dumps
 serv_req_info.txt
+
+# Quartus 25.1 compiler databases
+dni/
+qdb/
