@@ -1,0 +1,47 @@
+Component,PN,Description,Notes
+U1,10AXF40GGA,Altera/Intel Arria 10 FPGA,
+"U2, U3, U4, U5, U6,
+U7, U8, U9, U10, U11",H5AN4G6NAFR-UHC,4Gb DDR4 SDRAM,
+,,,
+U12,MT27524A1-FCCF-GE,Mellanox ConectX 3Pro,PCIe card
+,MT27711A0-FDCF-GE,Mellanox ConectX 4Lx,OCP card
+U17,DS250DF810,25 Gbps Multi-Rate 8-Channel Retimer,
+"U35
+U36",MP86905,"Monolithic half-bridge with
+built-in internal power MOSFETs",
+,,,
+U26,MP2953B,Digital Multi-Phase Controller,
+U38,CSD17570Q5B,Power MOSFET,
+U13,LM25066,Hot swap controller with SMBus/I2C,
+"U22
+U40
+U41",SN74AVC4T774,4-Bit Dual-Supply Bus Transceiver With Configurable Voltage-Level Shifting and 3-State Outputs,
+,,,
+,,,
+U21,FT232H,USB to Multipurpose UART/FIFO,
+U55,PCA9535,I2C I/O expander,
+U56,9DBV0441,4-Output 1.8V PCIe Fanout Buffer,PCIe clock distribution (PCIe card)
+,9DBV0241,2-Output 1.8V PCIe Fanout Buffer,PCIe clock distribution (OCP card)
+U14,25Q128FVSG,128Mb Serial flash memory,PCIe card
+U15,N25Q032A,32Mb Serial NOR Flash Memory,OCP card
+U16,M24128WP,128-Kbit serial I²C bus EEPROM,
+"U44, U25
+U39, U45",TI52 BSK,I2C level shifter,
+,,,
+Y1,001372 ACVOCZ 1632,Oscillator,For Mellanox NIC ASIC PCIe card
+,001372 ACVOAK 1609,,For Mellanox NIC ASIC OCP card
+Y2,12.000 ABM3CH6E,,12 MHz For FT232H
+Y3,XUL515 266,,266.667 MHz DDR4 bottom interface
+Y4,XUL515 266,,266.667 MHz DDR4 top interface
+Y5,XUL526 644,,644.53125 MHz 50GbE QSFP+
+Y6,XUL515 644,,644.53125 MHz FPGA to Mellanox NIC ASIC comunication PCIe card
+,101134 ACV09R 1546,,156.250 MHz FPGA to Mellanox NIC ASIC comunication OCP card
+U56,000744 ACP02B 1626,,100 MHz FPGA CLKUSR Pin
+U54,000193 ACP022 1545,,25 MHz For DS250DF810
+U19,N25Q00AA,1Gb Serial NOR Flash Memory,For FPGA configuration
+U18,TMP411,Remote and Local Temperature Sensor,
+"U23, U58",1200 631 C7JV,DDR4 Voltage regulator?,No datasheet
+"U29, U37, U31, U27",MPGA 8635 A462 E10,,Unknown
+U52,YA018 TI67W Z318,,Unknown PCIe card
+U20,16051E TI1622 BTAF +,,Unknown
+U51,ZWG 5BJ P83R,,Unknown

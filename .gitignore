@@ -1,0 +1,58 @@
+# Quartus build outputs
+db/
+incremental_db/
+output_files/
+greybox_tmp/
+*.qws
+*.qws.bak
+*.bak
+*.rpt
+*.summary
+*.smsg
+*.sof
+*.pof
+*.jic
+*.sld
+*.jdi
+*.pin
+*.qmsg
+*.done
+*.eqr
+*.hif
+*.vqm
+*.atom_netlist*
+*.cmp
+*.dpi
+*.fdo
+*.fsy
+*.jdi
+*.lpc
+*.map.amm
+*.ppf
+*.rtlv*
+*.sgdiff
+*.sta.summary
+*.tsu
+*.vpr
+
+# Keep deliberate recovery bitstreams
+!firmware/prebuilt/*.sof
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Python helpers
+__pycache__/
+*.pyc
+
+# Local scratch
+scratch/
+tmp/
+
+# Quartus crash dumps
+serv_req_info.txt

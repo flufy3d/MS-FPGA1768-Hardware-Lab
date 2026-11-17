@@ -1,0 +1,39 @@
+Header,Description,Pin,Signal,Remarks
+J6,USB,1,VCC (+5V),Muxed with J4 USB connector
+,,2,D-,
+,,3,D+,
+,,4,GND,
+J2,I2C Bus#2,1,SCL,3.3V PCIe powered
+,,2,SDA,
+,,3,GND,
+J10,I2C Bus#1,1,SCL,3.3V Board powerd
+,,2,SDA,
+,,3,GND,
+J9/U32,"I2C Bus#3
+Mellanox NIC
+status LED",1,GND,"U32 in the OCP board, J9 in the PCIe board
+3.3V Board powered
+D3 status LED only present in the OCP Board"
+,,2,D3 LED,
+,,3,SCL,
+,,4,SDA,
+J8,3 Pin fan header,1,NC,Only present in the PCIe version
+,,2,VCC (+12V),
+,,3,GND,
+J11,GPIO to FPGA,1,FPGA pin A24,"Only present in the PCIe version
+1.8V pull up"
+,,2,FPGA pin A25,
+,,3,FPGA pin A26,
+,,4,GND,
+J5,JTAG Header,1,TCK,
+,,2,GND,
+,,3,TDO,
+,,4,VCC (TRGT),1.8V
+,,5,TMS,
+,,6,NC,
+,,7,NC,
+,,8,NC,
+,,9,TDI,
+,,10,GND,Pull to GND to disable the onboard FT232H programmer
+J12,Unknown,1,,3.3V 10k pull down in the PCIe board
+,,2,GND,

@@ -1,0 +1,25 @@
+,,,,,,,,,,,,,,
+,BUS 1,,,,,BUS 2,,,,,BUS 3,,,
+,,,,,,,,,,,,,,
+,Component,Addr,SDA,SCL,,Component,Addr,SDA,SCL,,Component,Addr,SDA,SCL
+,J10 Header,,Pin 2,Pin 1,,J2 Header,,Pin 2,Pin 1,,U32 Header,,Pin 4,Pin 3
+,FPGA,,Pin L20,Pin K20,,PCIe Bottom,,Pin 158,Pin 156,,U12 Mellanox NIC,0x48,Pin G7,Pin G6
+,U17,0x22,Pin E12,Pin F12,,FPGA,,Pin K21,Pin J23,,,,,
+,QSFP Cage,0x50,Pin 12,Pin 11,,U12 Mellanox NIC,"0x1F, 0x48",Pin D6,Pin D5,,,,,
+,,,,,,U16 (M24128),0x51,Pin 5,Pin 6,,"U25
+Level shift",,Pin 6,Pin 7
+,,,,,,U26 (MP2958),0x40,Pin 29,Pin 30,,,,Pin 3,Pin 2
+,"U44
+Level shift",,Pin 6,Pin 7,,U18 (TMP411),0x4C,Pin 7,Pin8,,,,,
+,,,Pin 3,Pin 2,,U13 (LM25066),0x42,Pin 19,Pin 20,,,,,
+,,,,,,U56 (9DBV0441),0x6D,Pin 11,Pin 10,,,,,
+,,,,,,U55 (PD9535),0x27,Pin 20,Pin 19,,,,,
+,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,
+,,,,,,"U45
+Level shift",,Pin 6,Pin 7,,,,,
+,,,,,,,,Pin 3,Pin 2,,,,,
+,,,,,,,,,,,,,,
+,,,,,,"U39
+Level shift",,Pin 6,Pin 7,,,,,
+,,,,,,,,Pin 3,Pin 2,,,,,

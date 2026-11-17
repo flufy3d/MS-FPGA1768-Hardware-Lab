@@ -1,0 +1,65 @@
+# -------------------------------------------------------------------------- #
+# hello_world.qsf — Microsoft FPGA 1768 / Catapult v3 "Longs Peak"
+#
+# Minimal LED blinker. Volatile JTAG configuration only, config flash untouched.
+# -------------------------------------------------------------------------- #
+
+set_global_assignment -name FAMILY "Arria 10"
+set_global_assignment -name DEVICE 10AXF40AA
+set_global_assignment -name TOP_LEVEL_ENTITY hello_world
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 25.1.0
+set_global_assignment -name LAST_QUARTUS_VERSION "25.1.0 Pro Edition"
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 100
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+
+# Source files
+set_global_assignment -name SYSTEMVERILOG_FILE hello_world.sv
+set_global_assignment -name SDC_FILE hello_world.sdc
+
+# --------------------------------------------------------------------------
+# Configuration scheme (matches the on-board 1 Gb QSPI flash, ASx4)
+# --------------------------------------------------------------------------
+set_global_assignment -name STRATIXV_CONFIGURATION_SCHEME "ACTIVE SERIAL X4"
+set_global_assignment -name USE_CONFIGURATION_DEVICE ON
+set_global_assignment -name ACTIVE_SERIAL_CLOCK FREQ_100MHZ
+set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name ENABLE_OCT_DONE OFF
+set_global_assignment -name CRC_ERROR_OPEN_DRAIN ON
+
+# --------------------------------------------------------------------------
+# Pin assignments — see docs/hardware/leds.md and docs/hardware/clocks.md
+# --------------------------------------------------------------------------
+
+# 100 MHz oscillator U59 / CLKUSR
+set_location_assignment PIN_AP20 -to clk_100
+set_instance_assignment -name IO_STANDARD "1.8 V" -to clk_100
+
+# Nine front-edge LEDs (1.8 V bank)
+set_location_assignment PIN_AM17 -to led[0]
+set_location_assignment PIN_AH18 -to led[1]
+set_location_assignment PIN_AJ18 -to led[2]
+set_location_assignment PIN_AH17 -to led[3]
+set_location_assignment PIN_AJ16 -to led[4]
+set_location_assignment PIN_AK17 -to led[5]
+set_location_assignment PIN_AK16 -to led[6]
+set_location_assignment PIN_AK18 -to led[7]
+set_location_assignment PIN_AL18 -to led[8]
+
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[0]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[1]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[2]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[3]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[4]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[5]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[6]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[7]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[8]
+
+# Leave everything else alone
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
+# Obsolete assignment in <Version 25.1> "set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top"
+# Obsolete assignment in <Version 25.1> "set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top"
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-STATED"
