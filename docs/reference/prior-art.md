@@ -17,7 +17,7 @@ what, so you do not repeat work.
 - Quartus projects: `LEDs`, `GoldenTop`, `I2C`, `DDR4_{Top,Bot,Dual}`, `PCIe{1,2,Dual}`,
   `Network/SuperliteII_V4_QSFP`.
 - Notes on the DS250DF810 retimer programming and on the on-board FT232H.
-- Mirrored under [reference/catapult-v3-smartnic-re](../reference/catapult-v3-smartnic-re/NOTICE.md).
+- Upstream: <https://github.com/tow3rs/catapult-v3-smartnic-re>.
 
 Status claimed upstream: both DDR4 channels and both PCIe interfaces tested; QSFP link
 tested between two cards; FPGA↔Mellanox link **not** established.
@@ -27,14 +27,14 @@ tested between two cards; FPGA↔Mellanox link **not** established.
 Chinese engineer's work on the same card, focused on making it usable on Windows.
 
 - **On-board USB-Blaster plugin** (`jtag_hw_microsoft_catapult.dll` / `.so`) — this is what
-  makes the FT232H work with Quartus. Mirrored in
+  makes the FT232H work with Quartus. The Windows DLL and Linux `.so` are kept in
   [hardware/tools/usb-blaster/](../../hardware/tools/usb-blaster/).
 - PCIe + DDR4 demo (`Catapult_v3_PCIE1_DDR4_TEST`) with the Altera PCI API driver and a
   Windows DMA GUI.
 - RISC-V E203 soft core demo (`Catapult_v3_RISCV`) — a nice "real design" example.
 - **Microsoft Catapult V3 OpenCL BSP 18.1.2.277** — a complete OpenCL board package that
   runs `vector_add`, `sobel` and `mandelbrot` on the card (Windows 10, Quartus 18.1).
-- Mirrored subset under [reference/thinkoco-microsoft-fpga](../reference/thinkoco-microsoft-fpga/NOTICE.md).
+- Upstream: <https://github.com/thinkoco/microsoft_fpga>.
 
 ## Jan Marjanovič — Catapult v2 (previous generation)
 

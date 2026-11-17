@@ -9,7 +9,8 @@ BAR you control, then poke it from the host.
 
 ## Design
 
-Start from `reference/catapult-v3-smartnic-re/Projects/PCIe/PCIe1`. It contains:
+Start from the upstream `Projects/PCIe/PCIe1` project in
+[tow3rs/catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re). It contains:
 
 - `Qsys.qsys` — Arria 10 PCIe hard IP, Gen3 x8, BAR0 64 KB, PIO Avalon slave.
 - `Catapult_v3_PCIe1.v` — top level wiring `pcie1_rx[7:0]`, `pcie1_tx[7:0]`,
@@ -21,8 +22,8 @@ driver, so it does not collide with the Altera dev-kit IDs.
 
 ## Steps
 
-1. Copy the reference project into `projects/02_pcie_pio/` (or work in place under
-   `reference/`).
+1. Clone the upstream repository next to this one and copy `Projects/PCIe/PCIe1` into
+   `projects/02_pcie_pio/`.
 2. Open Platform Designer and regenerate `Qsys.qsys` for Quartus 25.1 (the IP version
    changes; expect migration warnings).
 3. Compile, program the `.sof`, then **cold boot or rescan PCI**:
@@ -66,5 +67,5 @@ The lower 8 bits of the PIO register drive the LEDs: you should see `10101010`.
 ## Next
 
 Once BAR access works, the reference `AVMM_DMA_Windows_GUI.zip` (see
-[reference/thinkoco-microsoft-fpga](../../reference/thinkoco-microsoft-fpga/NOTICE.md))
+[thinkoco/microsoft_fpga](https://github.com/thinkoco/microsoft_fpga))
 demonstrates DMA to DDR4.

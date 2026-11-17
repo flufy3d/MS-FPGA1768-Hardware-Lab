@@ -44,8 +44,9 @@ the board on eBay in any country. English keeps one canonical version.
    was verified on.
 4. **Do not invent pin numbers, addresses or part numbers.** If a value is a guess, write
    `unknown` or `hypothesis` and explain what would verify it.
-5. **Keep third-party material attributed.** Mirrored files live under `reference/` or
-   `hardware/` with a `NOTICE.md` naming the source URL and author.
+5. **Keep third-party material attributed.** Vendor documents kept under `hardware/`
+   name their source in the file README or NOTICE; other people's projects are linked
+   from `docs/reference/links.md`, not copied into this repository.
 6. **One change, one purpose.** Do not mix documentation fixes with RTL changes in a single
    commit.
 
@@ -67,7 +68,6 @@ hardware/                  physical artifacts
   tools/usb-blaster/       Quartus JTAG plugin binaries (do not edit)
 firmware/prebuilt/         small known-good bitstreams (SFL, recovery)
 projects/NN_name/          Quartus projects maintained here
-reference/                 mirrored third-party projects (read-only)
 scripts/                   PowerShell helpers
 lab-log/YYYY-MM-DD-*.md    dated record of physical experiments
 ```
@@ -80,7 +80,7 @@ Where does a new piece of information go?
 | A new pin or signal | `hardware/pinouts/README.md` + CSV + the relevant hardware page |
 | A new Quartus design | `projects/NN_name/` with its own README |
 | A fix for a tool problem | `docs/toolchain/` and, if it is a symptom, `docs/troubleshooting.md` |
-| A link to someone else's work | `docs/reference/links.md` and, if mirrored, `reference/<name>/` |
+| A link to someone else's work | `docs/reference/links.md` |
 | A failed experiment | `lab-log/` — failures are data, keep them |
 
 ## 5. Documentation conventions
@@ -234,13 +234,14 @@ Never delete an old lab log. If it was wrong, append a correction.
 
 ## 13. Third-party material
 
-- Mirrors live under `reference/` and `hardware/` with a `NOTICE.md`.
-- Keep the upstream file names and structure inside a mirror so that diffs against upstream
-  remain possible.
-- Do not relicense mirrored material. The repository's MIT licence covers only original
-  content.
-- When upstream updates, refresh the mirror in a dedicated commit and note the upstream
-  commit hash in the NOTICE file.
+- **Link, do not mirror.** Third-party projects (Quartus reference designs, demos, drivers)
+  are listed in `docs/reference/links.md` and `docs/reference/prior-art.md` with their
+  upstream URL; they are not copied into this repository.
+- Vendor documents that are needed offline (datasheets, the FT232H JTAG plugin) may live
+  under `hardware/`. Each folder has a `README.md` or `NOTICE.md` naming the source; do not
+  relicense them. The repository's MIT licence covers only original content.
+- Do not commit binaries copied from a vendor installer or a third-party release unless
+  they are required for the toolchain and their origin is recorded.
 
 ## 14. Definition of done
 

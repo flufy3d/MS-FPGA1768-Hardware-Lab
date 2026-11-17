@@ -1,7 +1,7 @@
 # 02 — Hello world (LEDs)
 
-> Status: **blocked** on this card (2026-11-17) — design written, compile blocked by the
-> Quartus Pro licence, JTAG chain not responding. See "Current blocker" at the end.
+> Status: **verified on this card (2026-11-17)** — compiled, programmed over JTAG, LEDs
+> observed.
 
 ## Goal
 
@@ -90,21 +90,25 @@ Power-cycle the PC (or the card). Configuration is volatile, so the FPGA reloads
 from the QSPI flash and the card returns to its as-found state (`1414:B204` on PCIe).
 No recovery step is needed as long as you never wrote the flash.
 
-## Current blocker (2026-11-17)
+## Result of the lab run (2026-11-17)
 
-Two independent problems prevented the first download on the lab card:
+| Item | Value |
+|------|-------|
+| Build | 0 errors, 5 warnings, 6m00s |
+| Bitstream | `hello_world.sof`, 35,860 KB, Quartus checksum `0x306E0B45` |
+| SHA-256 | `B538343AA78C17C1FC160D6A933A2CE55269B07AC8F8C25E717AC051F903CE69` |
+| Programming | `quartus_pgm` over the on-board FT232H, 8m58s at 5 MHz TCK |
+| Result | `Configuration succeeded`, PCIe endpoint disappeared (no PCIe in this design), LEDs running |
+| Timing | setup slack +8.183 ns, hold +0.030 ns, pulse width +4.782 ns |
+| Resources | 23 ALMs (0 %), 35 registers, 10 pins |
 
-1. **Licence.** `quartus_syn` stops with
-   `Error (19286): No license for family Arria 10`.
-   A valid Quartus Pro licence (or the free Quartus Prime Standard edition) is required.
-2. **JTAG.** `jtagconfig` finds the on-board cable but reports
-   `Unable to read device chain - JTAG chain broken`. An independent MPSSE scan
-   (`scripts/jtag_mpsse_idcode.py`) reads `0xFFFFFFFF` on TDO at 100 kHz – 2 MHz,
-   i.e. the FPGA does not drive TDO at all.
+The first attempt earlier in the day failed because of two unrelated toolchain problems, both
+now documented: the Arria 10 licence was missing, and `quartus_pgm`/`quartus_asm` need the
+separate Programmer package (`devices\programmer\pgm_dev_info.pcf`).
 
-The design itself is intentionally trivial and is expected to compile and run once the two
-blockers are resolved. Nothing has been written to the configuration flash, so the card
-still boots its factory image.
+> If the JTAG scan suddenly returns `0xFFFFFFFF` after a programmer session, power the PC
+> off at the PSU and back on. The FT232H latches and a reboot is not enough — see
+> [../hardware/jtag.md](../hardware/jtag.md).
 
 ## Recording the result
 

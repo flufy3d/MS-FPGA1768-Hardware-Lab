@@ -67,7 +67,6 @@ Full details: [docs/00-what-is-this-board.md](docs/00-what-is-this-board.md).
 | [`docs/`](docs/README.md) | Everything written down: hardware, toolchain, bring-up, prior art |
 | [`hardware/`](hardware/README.md) | Pinout spreadsheets, datasheets, board photos, USB-Blaster plugin binaries |
 | [`projects/`](projects/README.md) | Quartus projects maintained in this repo (start with hello world) |
-| [`reference/`](reference/README.md) | Mirrored third-party projects and notes, kept read-only |
 | [`scripts/`](scripts/README.md) | PowerShell helpers: environment, build, program, JTAG scan |
 | [`lab-log/`](lab-log/) | Dated log of what was actually done to the physical card |
 
@@ -86,8 +85,8 @@ Start reading here:
 |------|-------|
 | PCIe enumeration | Card is visible as `1414:B204` (subsystem `0400:1414`, class `0xFF0000`), link trained at Gen2 x8, no driver bound. This is a pre-programmed bitstream that shipped in the config flash. |
 | On-board USB programmer | FT232H enumerated as `0403:6014`, D2HD driver (`FTDIBUS`) loaded. Quartus needs the plugin DLL — see [docs/toolchain/onboard-usb-blaster.md](docs/toolchain/onboard-usb-blaster.md). |
-| JTAG | Cable detected (`Microsoft Catapult (64) [USB-0]`), but the chain does not respond: `JTAG chain broken`, TDO stuck high. See [docs/troubleshooting.md](docs/troubleshooting.md#jtag-chain-broken--tdo-stuck-high). |
-| Hello world | Design written in `projects/01_hello_world`; compile blocked by the Arria 10 licence, programming blocked by JTAG. See the [lab log](lab-log/). |
+| JTAG | Works after a full **AC power cycle**: `jtagconfig` reports `02E060DD  10AT115S(1|2)`. The FT232H latches after a crashed programmer run and then needs VBUS removed (not just a reboot). |
+| Hello world | **Success (2026-11-17).** `projects/01_hello_world` compiled (23 ALMs, timing met) and was loaded over JTAG in 8m58s. The LEDs show a 1 Hz heartbeat and a binary seconds counter. See the [lab log](lab-log/). |
 | DDR4 | Not yet tested in this lab. Reference designs exist (see [docs/bringup/04-ddr4.md](docs/bringup/04-ddr4.md)). |
 | PCIe endpoint | Not yet rebuilt in this lab; prior art uses the Altera PCIe hard IP. |
 | QSFP / retimer | Not tested in this lab. |
@@ -100,18 +99,17 @@ This repository aggregates information from several public reverse-engineering e
 from vendor documentation. The most important ones:
 
 - [tow3rs/catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re) —
-  pinouts, BOM, datasheets, Quartus reference projects (CC-BY-like public research; see
-  [reference/catapult-v3-smartnic-re](reference/catapult-v3-smartnic-re/NOTICE.md)).
+  pinouts, BOM, datasheets, Quartus reference projects.
 - [thinkoco/microsoft_fpga](https://github.com/thinkoco/microsoft_fpga) — on-board USB-Blaster
-  plugin, PCIe/DDR4 demo, OpenCL BSP 18.1 (see [reference/thinkoco-microsoft-fpga](reference/thinkoco-microsoft-fpga/NOTICE.md)).
+  plugin, PCIe/DDR4 demo, OpenCL BSP 18.1.
 - Microsoft Research publications on Catapult / Azure SmartNIC.
 - Intel/Altera Arria 10 documentation and the Quartus Prime Pro installation.
 
-Mirrored files keep their original attribution; see the `NOTICE.md` file in each reference
-folder. No commercial use is intended.
+Vendor documents kept in `hardware/` retain their original attribution; see the README or
+NOTICE in each folder. No commercial use is intended.
 
 ## License
 
 Original content of this repository (documents, scripts, RTL written here) is released under
-the MIT license — see [LICENSE](LICENSE). Mirrored third-party material remains under its
-original terms.
+the MIT license — see [LICENSE](LICENSE). Third-party material (datasheets, photographs,
+plugin binaries) remains under its original terms.

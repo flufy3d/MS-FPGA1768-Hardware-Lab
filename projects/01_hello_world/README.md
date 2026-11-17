@@ -9,7 +9,7 @@ Minimal LED blinker for the Microsoft FPGA 1768 / Catapult v3 "Longs Peak" card.
 | Clock | 100 MHz, pin `AP20` |
 | Outputs | `led[8:0]`, 1.8 V |
 | Configuration | volatile `.sof` over JTAG |
-| Status | **not yet built or programmed** — blocked by licence + JTAG chain (2026-11-17) |
+| Status | **verified on hardware (2026-11-17)** |
 
 ## Behaviour
 
@@ -63,17 +63,24 @@ quartus_sh --flow compile hello_world.qpf -c hello_world
 
 | Metric | Value |
 |--------|-------|
-| ALMs | not yet compiled (expected < 100 / 427,200) |
-| Timing | not yet compiled |
-| Bitstream | not yet produced |
+| ALMs | 23 / 427,200 (< 1 %) |
+| Registers | 35 |
+| Pins | 10 / 826 |
+| Timing | met (setup +8.183 ns, hold +0.030 ns) |
+| Compile time | 6m00s |
+| Bitstream | 35,860 KB, Quartus checksum `0x306E0B45` |
+| SHA-256 | `B538343AA78C17C1FC160D6A933A2CE55269B07AC8F8C25E717AC051F903CE69` |
+| Programming | 8m58s at 5 MHz TCK over the on-board FT232H |
 
-## Blockers (2026-11-17)
+## Notes for the next run
 
-- `quartus_syn` reports `No license for family Arria 10` on the Pro 25.1 installation.
-- The on-board JTAG chain does not respond (`jtagconfig`: "JTAG chain broken"; independent
-  MPSSE scan reads TDO stuck high).
-
-No build output or bitstream has been committed for this project.
+- At the default 10 MHz the download should be roughly twice as fast; 5 MHz was chosen
+  because it was the first successful run. The speed is set with
+  `<quartus>\bin64\msftdi.cfg` (`frequency=5000000`); delete the file to use the plugin
+  default.
+- The `.sof` is not committed; rebuild it or check the SHA-256 above.
+- If the JTAG scan ever returns `0xFFFFFFFF`, power off at the PSU (not a reboot) — the
+  FT232H latches after an aborted programmer session.
 
 ## Notes
 

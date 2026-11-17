@@ -6,8 +6,8 @@
 
 | Link | What |
 |------|------|
-| <https://github.com/tow3rs/catapult-v3-smartnic-re> | Catapult v3 pinouts, BOM, Quartus projects (mirrored here) |
-| <https://github.com/thinkoco/microsoft_fpga> | USB-Blaster plugin, PCIe/DDR4 demo, OpenCL BSP (partly mirrored) |
+| <https://github.com/tow3rs/catapult-v3-smartnic-re> | Catapult v3 pinouts, BOM, Quartus projects |
+| <https://github.com/thinkoco/microsoft_fpga> | USB-Blaster plugin, PCIe/DDR4 demo, OpenCL BSP |
 | <https://github.com/tow3rs/jtag-mpsse-blaster> | generic FTDI MPSSE → Quartus JTAG plugin |
 | <https://github.com/j-marjanovic/jtag-quartus-ft232h> | FT232H JTAG for Quartus (Linux) |
 | <https://github.com/wirebond/catapult_v2_pikes_peak> | Catapult v2 reverse engineering |

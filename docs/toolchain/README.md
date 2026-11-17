@@ -1,7 +1,6 @@
 # Toolchain
 
 > Status: verified with Quartus Prime Pro 25.1 on Windows 10 x64 · Last verified: 2026-11-17
-
 ## What you need
 
 | Component | Version used here | Why |

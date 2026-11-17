@@ -60,7 +60,8 @@ Standard SFF-8636 management interface at `0x50` on the same I2C bus. Reading by
 
 ## Reference design
 
-`reference/catapult-v3-smartnic-re/Projects/Network/SuperliteII_V4_QSFP` is a port of the
+`Projects/Network/SuperliteII_V4_QSFP` in
+[tow3rs/catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re) is a port of the
 Intel "High Speed Transceiver Demo" that:
 
 - instantiates the Arria 10 transceiver + 64b/66b PCS for 4 lanes,

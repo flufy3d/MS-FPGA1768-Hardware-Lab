@@ -44,6 +44,24 @@ jtagconfig
 #  02E060DD   10AX115
 ```
 
+## Measured timings (lab card, 2026-11-17)
+
+| Step | Time |
+|------|------|
+| Full compile, hello world (23 ALMs) | 6m00s |
+| `.sof` size | 35,860 KB (fixed by the 10AX115 die, not by the design) |
+| JTAG download at 5 MHz TCK | 8m58s |
+| JTAG download at 10 MHz TCK (projected) | ~4-5 min |
+
+The JTAG clock is set by the plugin config file `<quartus>\bin64\msftdi.cfg`:
+
+```
+channel=0
+frequency=5000000
+```
+
+Delete the file to use the plugin default (10 MHz).
+
 ## Program the configuration flash (persistent) — read this first
 
 Writing flash is a one-way trip unless you have a backup. The procedure uses a **Serial

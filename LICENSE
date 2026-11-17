@@ -22,7 +22,7 @@ SOFTWARE.
 
 ---
 
-Third-party material mirrored in this repository (datasheets, pinout
-spreadsheets, board photographs, Quartus projects and binary plugins) remains
-the property of its original authors and is included for research and
-preservation only. See the NOTICE.md files in reference/ and hardware/.
+Third-party material redistributed with this repository (vendor datasheets, pinout
+spreadsheets, board photographs and the FTDI JTAG plugin binaries) remains the
+property of its original authors and is included for research and preservation
+only. See the README and NOTICE files under hardware/.

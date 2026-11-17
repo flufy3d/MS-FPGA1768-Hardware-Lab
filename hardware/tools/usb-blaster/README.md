@@ -1,8 +1,8 @@
 # USB-Blaster plugin for the on-board FT232H
 
 These binaries make Quartus' `jtagd` recognise the card's on-board FT232H programmer.
-They are mirrored from [thinkoco/microsoft_fpga](https://github.com/thinkoco/microsoft_fpga)
-(`usb_blaster/` folder). See `reference/thinkoco-microsoft-fpga/NOTICE.md`.
+They are taken from [thinkoco/microsoft_fpga](https://github.com/thinkoco/microsoft_fpga)
+(`usb_blaster/` folder). All rights remain with the original author.
 
 | File | Target | Destination |
 |------|--------|-------------|

@@ -46,9 +46,11 @@ Full machine-readable pinouts:
 The simplest path is the community EMIF design, which already contains a calibrated
 `Qsys`/Platform Designer system for both channels:
 
-- `reference/catapult-v3-smartnic-re/Projects/DDR4/DDR4_Top`
-- `reference/catapult-v3-smartnic-re/Projects/DDR4/DDR4_Bot`
-- `reference/catapult-v3-smartnic-re/Projects/DDR4/DDR4_Dual`
+- `Projects/DDR4/DDR4_Top`
+- `Projects/DDR4/DDR4_Bot`
+- `Projects/DDR4/DDR4_Dual`
+
+in [tow3rs/catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re).
 
 They were built with Quartus 20.1 and the Arria 10 EMIF IP. Regenerating the IP in
 Quartus 25.1 is likely necessary; the pin assignments and the board timing parameters can

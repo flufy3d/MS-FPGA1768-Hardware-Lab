@@ -21,8 +21,7 @@ configuration flash was **not** touched during this session.
 
 ## What was done
 
-1. Collected the public documentation, pinouts, BOM, datasheets and photos into `hardware/`
-   and `reference/`.
+1. Collected the public documentation, pinouts, BOM, datasheets and photos into `hardware/`.
 2. Installed Quartus Prime Pro 25.1 to `D:\altera_pro\25.1` (not the system drive). The
    official installer hung in the SYSTEM session after unpacking the toolchain, so the
    Arria 10 device package (`arria10-25.1.0.129.qdz`) was extracted into the install tree
@@ -90,16 +89,39 @@ Purpose: catch the TAP in the window between power-up and configuration.
 
 ## Result
 
-**Partial, and the card was accidentally taken off the PCIe bus during the session.**
+**Success.**
 
-- Identification and documentation: done.
-- Toolchain: installed, but Arria 10 builds need a licence (owner will add one).
-- First bitstream: not built, not loaded.
-- JTAG: blocked, root cause not yet isolated.
+The hello-world design was compiled, loaded over JTAG and observed running on the card.
+
+| Item | Value |
+|------|-------|
+| Build | Quartus Prime Pro 25.1.0.129, 0 errors, 6m00s |
+| Bitstream | `hello_world.sof`, 35,860 KB, Quartus checksum `0x306E0B45` |
+| SHA-256 | `B538343AA78C17C1FC160D6A933A2CE55269B07AC8F8C25E717AC051F903CE69` |
+| Timing | setup +8.183 ns, hold +0.030 ns, pulse width +4.782 ns (met) |
+| Resources | 23 ALMs, 35 registers, 10 pins |
+| Download | `quartus_pgm` over the on-board FT232H, `Configuration succeeded`, 8m58s at 5 MHz TCK |
+| Observation | `led[8]` 1 Hz heartbeat, `led[7:0]` binary seconds counter |
+| Side effect | the `1414:B204` PCIe endpoint disappears (the design has no PCIe) until the next power cycle |
+
+The configuration flash was **not** written. A power cycle restores the factory Microsoft
+image.
+
+### What actually blocked us (and what fixed it)
+
+1. **Missing Arria 10 licence.** The owner installed the licence; `quartus_syn` then ran.
+2. **Missing Programmer package.** Quartus 25.1 ships the Programmer separately. Without
+   `devices\programmer\pgm_dev_info.pcf`, both `quartus_pgm` and `quartus_asm` die with a
+   `PGMDEV` internal error and a `.sof` is never produced. Installed
+   `QuartusProProgrammerSetup` and copied its device data into the main tree.
+3. **JTAG reads `0xFFFFFFFF`.** Not a locked or damaged TAP: the FT232H latches after a
+   crashed programmer run and stops passing TDO. Only removing AC power (VBUS) clears it —
+   a Windows reboot, `FT_CyclePort` and a PnP restart all fail. After a true cold start the
+   same tools read `02E060DD` immediately.
 
 ### Addendum — boot-time scan result
 
-The scheduled task `JtagBootScan` ran on the next cold boot:
+The scheduled task `JtagBootScan` ran on a cold boot:
 
 ```
 LastBootUpTime : 14:48:58
@@ -108,58 +130,32 @@ FTDI present   : 14:49:18
 attempts       : 1248 in 5 minutes, all rc=3 (TDO stuck)
 ```
 
-Conclusion: **inconclusive by construction.** Windows does not run the task until ~19 s
-after power-on, while the FPGA finishes loading its bitstream from flash in well under a
-second. The TAP window, if it exists, is long gone by then.
-
-Side effect: hammering `FT_Open`/`FT_Close` four times per second crashed the FTDI D2XX
-driver and the programmer disappeared from USB (`Present = False`) after the scan. The task
-has been disabled and its rate reduced to one attempt per second.
-
-The card itself returned on PCIe after the cold boot (`1414:B204`, x8).
+Inconclusive by construction: Windows does not run the task until ~19 s after power-on,
+while the FPGA loads its bitstream from flash in well under a second. Hammering
+`FT_Open`/`FT_Close` four times per second also crashed the FTDI D2XX driver; the task is
+now disabled and rate-limited.
 
 ### Addendum — ADBUS4-7 experiment (do not repeat blindly)
 
-The FT232H pins ADBUS4-7 are not used by the JTAG plugin. To test whether one of them
-holds the FPGA in reset or gates the JTAG path, they were driven as 3.3 V outputs in all
-16 combinations (`scripts/jtag_gpio_probe.py`).
-
-While driving `0b0000` (all four low) the card's PCIe endpoint disappeared:
-
-```
-PCI\VEN_1414&DEV_B204...   Present = False
-```
-
-It did not come back after releasing the pins, after holding `0b1111` for 8 s, after
-`pnputil /scan-devices`, or after sweeping single bits high (`scripts/jtag_config_hold.py`).
-The FT232H itself stayed alive throughout (USB powered).
-
-Interpretation and warning:
-
-- At least one of ADBUS4-7 is connected to an FPGA configuration/power signal, and driving
-  it low unconfigures or powers down the FPGA.
-- A **full power cycle** is required to bring the card back; a PCI rescan is not enough.
-- Do **not** drive ADBUS4-7 as outputs on this board unless you know the net. The scripts
-  are kept only as a record of the experiment.
-
-JTAG reads taken while the card was off the bus still returned `0xFFFFFFFF`, so the TAP did
-not become available in that state either.
+Driving the FT232H pins ADBUS4-7 as 3.3 V outputs (`scripts/jtag_gpio_probe.py`) took the
+card off the PCIe bus when pattern `0b0000` was applied. It did not come back on release;
+a full power cycle was required. At least one of those pins is connected to an FPGA
+configuration or power signal. Do not drive them without knowing the net.
 
 ## Artifacts
 
-- No bitstream was produced.
-- Diagnostic scripts: `scripts/jtag_mpsse_idcode.py`, `scripts/jtag_gpio_probe.py`,
-  `scripts/jtag_config_probe.py`, `scripts/jtag_config_hold.py`,
-  `scripts/jtag_bitbang_idcode.py`.
-- Boot scan log: `C:\ProgramData\jtag-boot-scan.log`.
+- `projects/01_hello_world/output_files/hello_world.sof` (not committed), SHA-256 above
+- `projects/01_hello_world/output_files/hello_world.fit.rpt`, `.sta.rpt`, `.map.rpt`
+- Diagnostic scripts: `scripts/jtag_mpsse_idcode.py`, `scripts/ftdi_cycle.py`,
+  `scripts/jtag_gpio_probe.py`, `scripts/jtag_config_probe.py`,
+  `scripts/jtag_config_hold.py`
+- Boot scan log: `C:\ProgramData\jtag-boot-scan.log`
 
 ## Next session
 
-1. Power-cycle the machine (full shutdown, not restart) to restore the card on PCIe.
-2. Read `C:\ProgramData\jtag-boot-scan.log` afterwards: it records whether the JTAG TAP
-   answered during Windows startup.
-3. Resolve the Quartus licence (Pro licence or free Standard edition) and build
-   `projects/01_hello_world`.
-4. If the TAP never answers: try an external USB-Blaster on J5, then check the 1.8 V JTAG
-   bank and the level shifter between U21 and the FPGA.
-5. Do **not** write the configuration flash until a backup exists.
+1. Back up the configuration flash before writing anything (see
+   `docs/toolchain/build-and-program.md`).
+2. Bring up the PCIe PIO design from the upstream `PCIe1` project and check BAR access.
+3. Try the QSFP retimer I2C scan on bus #1 (0x22 and 0x50).
+4. Add a project template that includes the Programmer-package workaround and the cold-start
+   checklist, so the next person does not repeat today's detours.

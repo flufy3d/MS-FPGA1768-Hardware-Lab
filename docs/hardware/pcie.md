@@ -41,8 +41,8 @@ $ lspci -nn  (equivalent)
 
 ## Reference design
 
-`reference/catapult-v3-smartnic-re/Projects/PCIe/PCIe1` (and `PCIe2`, `PCIe_Dual`) contains
-a minimal design:
+The upstream [catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re)
+repository has `Projects/PCIe/PCIe1` (and `PCIe2`, `PCIe_Dual`) with a minimal design:
 
 - Arria 10 PCIe HIP configured as Gen3 x8, 256-byte payload, BAR0 64 KB.
 - A PIO (parallel I/O) Avalon slave mapped into BAR0; the lower 8 bits drive the LEDs.
@@ -57,7 +57,8 @@ connections for `rx_in[7:0]`, `tx_out[7:0]`, `refclk`, `npor` and `pin_perst`.
 Two options:
 
 1. **Altera PCI API driver** (Windows) — included in the thinkoco repo under
-   `reference/thinkoco-microsoft-fpga/demos/.../2.0 Altera PCIE Driver/`. It exposes BARs
+   in [thinkoco/microsoft_fpga](https://github.com/thinkoco/microsoft_fpga)
+   (`demostrations/.../2.0 Altera PCIE Driver/`). It exposes BARs
    through a `windrvr6`-style API. Works with the reference design's Altera vendor ID.
 2. **Linux `uio_pci_generic` / VFIO** — bind the endpoint to `vfio-pci`, map BAR0 into
    user space, read/write the PIO registers. This is the recommended path for new work
