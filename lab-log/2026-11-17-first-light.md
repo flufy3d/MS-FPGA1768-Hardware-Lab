@@ -90,26 +90,55 @@ Purpose: catch the TAP in the window between power-up and configuration.
 
 ## Result
 
-**Partial.**
+**Partial, and the card was accidentally taken off the PCIe bus during the session.**
 
 - Identification and documentation: done.
 - Toolchain: installed, but Arria 10 builds need a licence (owner will add one).
 - First bitstream: not built, not loaded.
 - JTAG: blocked, root cause not yet isolated.
 
+### Addendum — ADBUS4-7 experiment (do not repeat blindly)
+
+The FT232H pins ADBUS4-7 are not used by the JTAG plugin. To test whether one of them
+holds the FPGA in reset or gates the JTAG path, they were driven as 3.3 V outputs in all
+16 combinations (`scripts/jtag_gpio_probe.py`).
+
+While driving `0b0000` (all four low) the card's PCIe endpoint disappeared:
+
+```
+PCI\VEN_1414&DEV_B204...   Present = False
+```
+
+It did not come back after releasing the pins, after holding `0b1111` for 8 s, after
+`pnputil /scan-devices`, or after sweeping single bits high (`scripts/jtag_config_hold.py`).
+The FT232H itself stayed alive throughout (USB powered).
+
+Interpretation and warning:
+
+- At least one of ADBUS4-7 is connected to an FPGA configuration/power signal, and driving
+  it low unconfigures or powers down the FPGA.
+- A **full power cycle** is required to bring the card back; a PCI rescan is not enough.
+- Do **not** drive ADBUS4-7 as outputs on this board unless you know the net. The scripts
+  are kept only as a record of the experiment.
+
+JTAG reads taken while the card was off the bus still returned `0xFFFFFFFF`, so the TAP did
+not become available in that state either.
+
 ## Artifacts
 
 - No bitstream was produced.
-- Diagnostic scripts: `scripts/jtag_mpsse_idcode.py`, `scripts/jtag_probe_pins.py`,
+- Diagnostic scripts: `scripts/jtag_mpsse_idcode.py`, `scripts/jtag_gpio_probe.py`,
+  `scripts/jtag_config_probe.py`, `scripts/jtag_config_hold.py`,
   `scripts/jtag_bitbang_idcode.py`.
 - Boot scan log: `C:\ProgramData\jtag-boot-scan.log`.
 
 ## Next session
 
-1. Resolve the Quartus licence (Pro licence or free Standard edition) and build
+1. Power-cycle the machine (full shutdown, not restart) to restore the card on PCIe.
+2. Read `C:\ProgramData\jtag-boot-scan.log` afterwards: it records whether the JTAG TAP
+   answered during Windows startup.
+3. Resolve the Quartus licence (Pro licence or free Standard edition) and build
    `projects/01_hello_world`.
-2. Read `C:\ProgramData\jtag-boot-scan.log` after a **cold** boot (full shutdown, not a
-   restart) to see whether the TAP answers before configuration.
-3. If the TAP never answers: try an external USB-Blaster on J5, then check the 1.8 V JTAG
+4. If the TAP never answers: try an external USB-Blaster on J5, then check the 1.8 V JTAG
    bank and the level shifter between U21 and the FPGA.
-4. Do **not** write the configuration flash until a backup exists.
+5. Do **not** write the configuration flash until a backup exists.

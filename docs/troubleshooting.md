@@ -69,6 +69,22 @@ line. Work through this list:
 The boot-time scan task (see `lab-log/2026-11-17-first-light.md`) logs every attempt during
 Windows startup and is the cheapest way to test hypothesis 4.
 
+> **Do not drive FT232H ADBUS4-7 as outputs.** On the lab card, pulling ADBUS4-7 low
+> unconfigured the FPGA and the card dropped off the PCIe bus until a full power cycle.
+> One of those pins is connected to an FPGA configuration/power signal.
+
+## Card disappeared from PCIe and does not come back
+
+Symptoms: the device node exists with `Present = False`, `pnputil /scan-devices` finds
+nothing, and the machine still boots normally.
+
+Cause observed in this lab: driving the FT232H ADBUS4-7 pins low (see warning above). The
+FPGA is left unconfigured or powered down.
+
+Fix: **full shutdown and cold start** (not a restart). The FPGA reloads its bitstream from
+the QSPI flash and the endpoint returns. If it still does not appear after a cold boot,
+check the 12 V rails and the config flash (see [hardware/fpga.md](hardware/fpga.md)).
+
 ## Programming succeeds but the design does nothing
 
 - Wrong clock pin: `clk_u59` is `AP20`; a design built for another board will not blink.
