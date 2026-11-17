@@ -70,6 +70,49 @@ Or just use `scripts/env.ps1`, which finds the installation automatically:
 . .\scripts\env.ps1
 ```
 
+## 4b. Programmer package (required for `quartus_pgm`)
+
+Recent Quartus releases ship the **Programmer** as a separate package. If only the main
+Quartus payload was installed, `quartus_pgm` crashes with:
+
+```
+Internal Error: Sub-system: PGMDEV ... device_file:
+<install>/devices/programmer/pgm_dev_info.pcf does not exist
+```
+
+Install `QuartusProProgrammerSetup-<version>-windows.exe` into the **same** installation
+directory:
+
+```powershell
+QuartusProProgrammerSetup-25.1.0.129-windows.exe `
+  --mode unattended --unattendedmodeui none `
+  --installdir D:\altera_pro\25.1 --accept_eula 1
+```
+
+On 25.1 this creates a separate tree:
+
+```
+D:\altera_pro\25.1\qprogrammer\quartus\bin64\quartus_pgm.exe
+D:\altera_pro\25.1\qprogrammer\devices\programmer\pgm_dev_info.pcf
+```
+
+Use that `quartus_pgm` (and its `jtagconfig`) with `QUARTUS_ROOTDIR` pointing at
+`...\qprogrammer\quartus`. Copy the JTAG plugin into `...\qprogrammer\quartus\bin64` as
+well. `scripts/env.ps1` detects this layout and `scripts/program.ps1` switches to it
+automatically.
+
+> **Quartus 25.1 also needs the Programmer data for `.sof` assembly.** `quartus_asm`
+> loads `devices\programmer\pgm_dev_info.pcf`; without it the assembler dies with the same
+> `PGMDEV` internal error. Either install the Programmer into the main tree, or copy the
+> folder once:
+>
+> ```powershell
+> Copy-Item D:\altera_pro\25.1\qprogrammer\devices\programmer `
+>           D:\altera_pro\25.1\devices\ -Recurse
+> ```
+>
+> After that the normal `quartus_sh --flow compile` produces the `.sof`.
+
 ## 5. Optional components
 
 | Installer | Purpose | Needed? |

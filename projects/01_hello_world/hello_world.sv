@@ -15,8 +15,8 @@
 `default_nettype none
 
 module hello_world (
-    input  logic       clk_100,
-    output logic [8:0] led
+    input  wire        clk_100,
+    output wire [8:0]  led
 );
 
     // 100 MHz / 50_000_000 = 2 Hz tick -> 1 Hz square wave

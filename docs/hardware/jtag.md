@@ -1,6 +1,8 @@
 # JTAG and the on-board USB programmer
 
-> Status: cable detected, **chain not responding** on this card (2026-11-17)
+> Status: **working** after a full VBUS power cycle (IDCODE `0x02E060DD` read 2026-11-17).
+> The FT232H can latch up after an aborted Quartus programmer session and then needs a
+> full power cycle to recover — see the note at the end.
 > Last verified: 2026-11-17
 
 ## Two ways to reach the FPGA's JTAG port
@@ -54,20 +56,31 @@ Info:  Device 1: 10AX115 (IDCODE 0x02E060DD)
 Expected IDCODE: **`0x02E060DD`**. This is the single most useful debug datum: if the chain
 scans, the FPGA is alive, powered, and its JTAG pins are intact.
 
-**On this card the chain does not respond** (2026-11-17). `jtagconfig` enumerates the cable
-as `Microsoft Catapult (64) [USB-0]` but reports `Unable to read device chain - JTAG chain
-broken`, and an independent MPSSE scan (`scripts/jtag_mpsse_idcode.py`) reads TDO stuck at
-`1` for every TCK speed between 100 kHz and 2 MHz and every TCK/TDI/TMS pin permutation.
+**On this card the chain initially did not respond** (2026-11-17). `jtagconfig`
+enumerated the cable as `Microsoft Catapult (64) [USB-0]` but reported `Unable to read
+device chain - JTAG chain broken`, and an independent MPSSE scan
+(`scripts/jtag_mpsse_idcode.py`) read TDO stuck at `1` for every TCK speed between 100 kHz
+and 2 MHz and every TCK/TDI/TMS pin permutation.
 
-Possible causes, in order of likelihood:
+After a **full power cycle** (PSU switched off, not a reboot) the same tools read the
+correct IDCODE:
 
-1. The factory Microsoft bitstream disables the JTAG TAP after configuration (JTAG secure
-   mode / production security settings).
-2. The FT232H → FPGA JTAG path is damaged or its level shifter is disabled.
-3. The on-board programmer is deselected (J5 pin 10 grounded, or a missing jumper).
+```
+jtagconfig
+1) Microsoft Catapult (64) [USB-0]
+  02E060DD   10AT115S(1|2)
 
-Diagnostics and next steps are in
-[troubleshooting.md](../troubleshooting.md#jtag-chain-broken--tdo-stuck-high).
+python scripts/jtag_mpsse_idcode.py --speed 500000
+IDCODE=0x02E060DD
+OK: Arria 10 10AX115
+```
+
+So the FPGA and the JTAG wiring are fine. The failures were caused by the FT232H being in
+a latched state, not by a locked or damaged TAP.
+
+> **Recovery rule.** If JTAG reads `0xFFFFFFFF` after a programmer session (especially one
+> that crashed), power the whole machine off at the PSU and back on. `FT_CyclePort`
+> (`scripts/ftdi_cycle.py`) re-enumerates the FT232H but does **not** clear this latch.
 
 ## Reconfiguration behaviour
 

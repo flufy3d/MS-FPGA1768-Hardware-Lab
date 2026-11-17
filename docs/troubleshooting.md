@@ -54,15 +54,17 @@ python scripts\jtag_mpsse_idcode.py --speed 500000
 If TDO is constant `1` at every speed and every pin permutation, the FPGA is not driving the
 line. Work through this list:
 
+0. **Power-cycle the whole machine at the PSU first.** On the lab card this was the actual
+   fix: the FT232H latches after an aborted Quartus programmer run and stops passing TDO,
+   while the FPGA keeps running normally. `FT_CyclePort` (`scripts/ftdi_cycle.py`) is *not*
+   enough; VBUS must drop.
 1. **Cable / driver**: the FTDI device must be present and `jtagconfig` must list the cable.
    If not, fix that first.
 2. **J5 pin 10**: must be open. Grounding it disables the on-board FT232H.
 3. **External programmer**: try a USB-Blaster on J5. J5 goes to the FPGA JTAG pins through a
    different path than the FT232H; if it works, the on-board path is at fault.
-4. **JTAG locked by the running bitstream**: the card in this lab arrived with a Microsoft
-   production image. If the design sets JTAG secure mode, the TAP is only usable before the
-   FPGA is configured. Catching that window requires holding `nCONFIG` low at power-up; a
-   normal Windows boot is far too slow to catch it.
+4. **JTAG locked by the running bitstream**: not observed on this card — IDCODE reads fine
+   with the Microsoft bitstream running.
 5. **Damaged level shifter**: measure 1.8 V on J5 pin 4 and check that TCK/TMS/TDI reach the
    FPGA. No public schematic exists, so this needs continuity probing.
 

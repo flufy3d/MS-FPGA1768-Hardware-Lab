@@ -23,8 +23,28 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'env.ps1') | Out-Null
 
+# quartus_pgm needs devices\programmer\pgm_dev_info.pcf. If the main Quartus tree
+# does not have it (the Programmer is a separate package), use the standalone
+# programmer tree for both jtagconfig and quartus_pgm.
+$quartusBin = Join-Path $env:QUARTUS_ROOTDIR 'bin64'
+if ($env:QUARTUS_PROGRAMMER_ROOT -and
+    ($env:QUARTUS_PROGRAMMER_ROOT -ne $env:QUARTUS_ROOTDIR)) {
+    Write-Host "Using standalone programmer: $($env:QUARTUS_PROGRAMMER_ROOT)" -ForegroundColor Yellow
+    $env:QUARTUS_ROOTDIR = $env:QUARTUS_PROGRAMMER_ROOT
+    $quartusBin = Join-Path $env:QUARTUS_PROGRAMMER_ROOT 'bin64'
+} else {
+    $pcf = Join-Path (Split-Path $env:QUARTUS_ROOTDIR -Parent) 'devices\programmer\pgm_dev_info.pcf'
+    if (-not (Test-Path $pcf)) {
+        Write-Warning "Programmer device database missing ($pcf). quartus_pgm will crash."
+        Write-Warning "Install QuartusProProgrammerSetup (see docs/toolchain/quartus-install.md)."
+    }
+}
+
+$jtagconfig = Join-Path $quartusBin 'jtagconfig.exe'
+$quartusPgm = Join-Path $quartusBin 'quartus_pgm.exe'
+
 function Get-Cable {
-    $lines = & jtagconfig 2>&1
+    $lines = & $jtagconfig 2>&1
     $index = 0
     $cables = @()
     foreach ($line in $lines) {
@@ -53,7 +73,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Sof') {
     $Sof = (Resolve-Path $Sof).Path
     Write-Host ""
     Write-Host "Loading (volatile) $Sof" -ForegroundColor Cyan
-    & quartus_pgm @hwArgs -m jtag -o "p;$Sof"
+    & $quartusPgm @hwArgs -m jtag -o "p;$Sof"
     if ($LASTEXITCODE -ne 0) { throw "quartus_pgm failed ($LASTEXITCODE)" }
     Write-Host "Done. The design is running from SRAM; a power cycle restores the flash image." -ForegroundColor Green
     return
@@ -71,11 +91,11 @@ if (-not (Test-Path $sfl)) { throw "Serial Flash Loader not found: $sfl" }
 
 Write-Warning "This will overwrite the on-board configuration flash at $Jic"
 Write-Host "Step 1/2: loading Serial Flash Loader (volatile)" -ForegroundColor Cyan
-& quartus_pgm @hwArgs -m jtag -o "p;$sfl"
+& $quartusPgm @hwArgs -m jtag -o "p;$sfl"
 if ($LASTEXITCODE -ne 0) { throw "Failed to load SFL ($LASTEXITCODE)" }
 
 Write-Host "Step 2/2: writing flash" -ForegroundColor Cyan
-& quartus_pgm @hwArgs -m jtag -o "p;$Jic"
+& $quartusPgm @hwArgs -m jtag -o "p;$Jic"
 if ($LASTEXITCODE -ne 0) { throw "Flash programming failed ($LASTEXITCODE)" }
 
 Write-Host "Flash written. Power-cycle the card to boot from flash." -ForegroundColor Green
