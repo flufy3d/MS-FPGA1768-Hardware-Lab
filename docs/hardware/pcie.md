@@ -39,15 +39,37 @@ $ lspci -nn  (equivalent)
 - Windows has no driver for vendor `0x1414`, device `0xB204`, class `0xFF` — this is
   expected; it is not a standard class code.
 
+### Lab endpoint (2026-11-17)
+
+`projects/02_pcie_pio` enumerated as `1172:E003` at `02:00.0`:
+
+| Property | Value |
+|----------|-------|
+| LnkCap | 8 GT/s, x8 |
+| LnkSta | 5 GT/s (Gen2), x8 |
+| Windows | problem code 28 (no driver) |
+| BAR0 | 64 KB, not assigned after a hot PnP scan; BAR test pending |
+
+The endpoint is Gen3-capable; this slot trained it at Gen2 x8, the same as the factory
+image. A host bugcheck during the BAR0 attempt left the card unpowered, so the BAR0
+compute test is not yet complete. See
+[lab-log/2026-11-17-pcie-pio.md](../../lab-log/2026-11-17-pcie-pio.md).
+
 ## Reference design
 
 The upstream [catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re)
 repository has `Projects/PCIe/PCIe1` (and `PCIe2`, `PCIe_Dual`) with a minimal design:
 
-- Arria 10 PCIe HIP configured as Gen3 x8, 256-byte payload, BAR0 64 KB.
+- Arria 10 PCIe HIP configured as **Gen2 x8 (128-bit)** in the upstream Qsys
+  (`wrala_hwtcl = 7`), 128-byte payload, BAR0 64 KB. The HIP is Gen3-capable; the
+  reference design does not select Gen3.
 - A PIO (parallel I/O) Avalon slave mapped into BAR0; the lower 8 bits drive the LEDs.
 - Vendor/device ID `1172:E003` (Altera development kit IDs) by default — change them to
   something unique before installing a driver.
+
+`projects/02_pcie_pio` in this repository uses `wrala_hwtcl = 0` (Gen3 x8, 256-bit) and
+`interface_type_hwtcl = "Avalon-MM with DMA"`. Its BAR0 register bank returns `A + B`
+instead of driving LEDs.
 
 The `.qsys` file contains the HIP configuration; the top-level Verilog shows the exact pin
 connections for `rx_in[7:0]`, `tx_out[7:0]`, `refclk`, `npor` and `pin_perst`.

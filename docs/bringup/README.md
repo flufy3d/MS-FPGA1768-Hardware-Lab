@@ -7,7 +7,7 @@ ends with "what success looks like" and "if it fails".
 |------|------|------|------|
 | 1 | [JTAG scan](01-jtag-scan.md) | 5 min | none |
 | 2 | [Hello world (LEDs)](02-hello-world.md) | 30 min | none (volatile load) |
-| 3 | [PCIe endpoint](03-pcie-endpoint.md) | 2-4 h | low |
+| 3 | [PCIe endpoint](03-pcie-endpoint.md) | 2-4 h | low (host driver risk during BAR access) |
 | 4 | [DDR4](04-ddr4.md) | 2-4 h | low |
 
 Do them in order: each step proves a layer that the next one relies on.

@@ -19,6 +19,22 @@
 - Riser cards and M.2 adapters often break Gen3.
 - The Microsoft bitstream may be configured for Gen2.
 
+## Host bugcheck after BAR0 access
+
+Symptom: Windows bugchecks with `0x00000050 PAGE_FAULT_IN_NONPAGED_AREA` while a PCIe
+BAR is accessed through a kernel driver. Observed in this lab with RWEverything
+(2026-11-17) after the endpoint was hot-added and BAR0 had not been assigned.
+
+Check the config space **before** writing:
+
+- command register (`0x04`) must have memory space enable (bit 1) set;
+- BAR0 (`0x10`/`0x14`) must contain a real base address, not `0x0000000C` with base 0.
+
+An unassigned BAR0 means Windows/BIOS has not allocated a memory window. A write through
+a kernel driver can land near physical address 0 and crash the host. Cold-start the card,
+let the BIOS assign the BAR, and use Linux `pcimem` or another tool that validates the BAR
+before writing. Do not repeat the write on an unassigned BAR.
+
 ## `jtagconfig` finds no cable
 
 See [onboard-usb-blaster.md](toolchain/onboard-usb-blaster.md). The three usual causes:
@@ -83,6 +99,12 @@ nothing, and the machine still boots normally.
 Cause observed in this lab: driving the FT232H ADBUS4-7 pins low (see warning above). The
 FPGA is left unconfigured or powered down.
 
+Also observed after a host bugcheck during a BAR0 access (2026-11-17): the PCIe endpoint
+and the FT232H both disappeared. The two `USB\VID_0403&PID_6014` nodes were
+`Present=False` / `CM_PROB_PHANTOM`, and `jtagconfig` reported no hardware. A warm reboot
+did not help; the card was unpowered or the FT232H latched. A full AC power cycle is
+required.
+
 Fix: **full shutdown and cold start** (not a restart). The FPGA reloads its bitstream from
 the QSPI flash and the endpoint returns. If it still does not appear after a cold boot,
 check the 12 V rails and the config flash (see [hardware/fpga.md](hardware/fpga.md)).
@@ -116,6 +138,18 @@ check the 12 V rails and the config flash (see [hardware/fpga.md](hardware/fpga.
 - Check the level shifters (U25/U39/U44/U45); they are enabled by `PCA9535` outputs on some
   revisions.
 - Do not scan with a 5 V adapter.
+
+## `qsys-generate` fails with ClassNotFoundException
+
+```
+Error: Could not find or load main class com.altera.qsys.generate.QsysGenerate
+```
+
+The `<install>\qsys` Platform Designer runtime is missing. The Quartus compiler still works
+for pure RTL, which is why a hello-world build succeeds; projects that instantiate IP
+(PCIe, DDR4, PLLs) fail. Re-run the Quartus installer and add/repair the Quartus
+core/Platform Designer component, then verify `<install>\qsys\bin\qsys-generate.exe`.
+See [toolchain/quartus-install.md](toolchain/quartus-install.md#2b-platform-designer-required-for-ip).
 
 ## Licence errors
 

@@ -37,6 +37,34 @@ Notes:
 - The GUI equivalent is the same, just launch the `.exe` and select the Arria 10 device
   package on the component page.
 
+## 2b. Platform Designer (required for IP)
+
+Platform Designer (formerly Qsys) is part of the Quartus Prime Pro installation and lives
+under `<install>\qsys`. The compiler does not need it for pure RTL projects, but any
+project that instantiates IP (PCIe, DDR4, PLLs, ...) does.
+
+If `qsys-generate` fails with:
+
+```
+Error: Could not find or load main class com.altera.qsys.generate.QsysGenerate
+```
+
+then `<install>\qsys` is missing. This can happen when the main installer was interrupted
+or when only the `quartus\` tree was copied manually. Re-run the installer with the same
+`--installdir` and add/repair the Quartus core/Platform Designer component. Verify:
+
+```powershell
+Test-Path D:\altera_pro\25.1\qsys\bin\qsys-generate.exe
+Test-Path D:\altera_pro\25.1\qsys\lib\com.altera.qsys.common.jar
+```
+
+`qsys-generate` takes a `.qsys` or `.ip` file as its first argument; `--version` is not a
+valid switch. A real check is:
+
+```powershell
+qsys-generate pcie_pio_sys.qsys --synthesis=VERILOG --part=10AXF40AA --family="Arria 10"
+```
+
 ## 3. Verify
 
 ```powershell

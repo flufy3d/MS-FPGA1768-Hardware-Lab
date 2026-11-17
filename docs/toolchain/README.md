@@ -6,9 +6,16 @@
 | Component | Version used here | Why |
 |-----------|-------------------|-----|
 | Quartus Prime **Pro** | 25.1.0.129 | Arria 10 support, `quartus_pgm`, `jtagconfig` |
+| Platform Designer | part of Quartus Pro 25.1 | `qsys-generate`, PCIe/DDR4 IP |
 | Arria 10 device package | `arria10-25.1.0.129.qdz` | device database for `10AXF40AA` |
 | FTDI D2XX driver | Windows update / CDM 2.12+ | on-board FT232H programmer |
 | USB-Blaster plugin | `jtag_hw_microsoft_catapult.dll` | makes Quartus see the FT232H as a programmer |
+
+Platform Designer (formerly Qsys) is part of the Quartus Prime Pro installation. It lives
+under `<install>\qsys`. If `qsys-generate` fails with
+`ClassNotFoundException: com.altera.qsys.generate.QsysGenerate`, that directory is missing;
+re-run the Quartus installer and add/repair the Quartus core/Platform Designer component.
+See [quartus-install.md](quartus-install.md#2b-platform-designer-required-for-ip).
 
 Quartus **Standard** also supports Arria 10 and is free; it can compile the designs in this
 repo, but the reference OpenCL BSP requires the Pro edition. The community projects were
