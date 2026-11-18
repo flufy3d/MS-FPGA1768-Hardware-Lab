@@ -46,7 +46,14 @@ if (-not (Test-Path $cl) -or -not (Test-Path $link)) {
 
 $wdkRoot   = Join-Path $programFilesX86 'Windows Kits\10'
 $sdkVer    = '10.0.22621.0'
-$kmdfVer   = '1.33'
+
+# The KMDF version must not be newer than the framework on the test host, or
+# WdfDriverCreate fails and the device shows code 10/31. The WDK 22621 kit ships
+# 1.11 through 1.33; the lab host is Windows 10 22H2 (19045), which has 1.31.
+# Raise this together with `KmdfLibraryVersion` in pcie_bar.inf if the host moves
+# to Windows 11. `(Get-Item C:\Windows\System32\drivers\Wdf01000.sys).VersionInfo`
+# reports the installed version.
+$kmdfVer   = '1.31'
 
 $includePaths = @(
     (Join-Path $wdkRoot "Include\$sdkVer\km"),
@@ -75,7 +82,7 @@ $clArgs = @(
     '/nologo', '/c', '/kernel', '/GS', '/W4', '/O2',
     '/D_AMD64_', '/DAMD64',
     '/DWIN32=100', '/D_WIN32_WINNT=0x0A00', '/DNTDDI_VERSION=0x0A000000',
-    '/DKMDF_VERSION_MAJOR=1', '/DKMDF_VERSION_MINOR=33',
+    '/DKMDF_VERSION_MAJOR=1', '/DKMDF_VERSION_MINOR=31',
     '/D_CRT_SECURE_NO_WARNINGS',
     "/Fo$out\pcie_bar.obj"
 )

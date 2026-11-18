@@ -22,6 +22,17 @@ peripheral work.
 - Secure Boot **disabled** in the BIOS.
 - Windows test signing enabled (`bcdedit /set testsigning on`) and a reboot.
 
+The KMDF version in `build.ps1` and `pcie_bar.inf` must not be newer than the
+framework on the test host. This host is Windows 10 22H2 (19045) with **KMDF 1.31**,
+so both files target 1.31. A driver that asks for a newer framework fails inside
+`WdfDriverCreate` and the device ends up with problem code 10 or 31. Check the
+installed version with:
+
+```powershell
+(Get-Item C:\Windows\System32\drivers\Wdf01000.sys).VersionInfo.FileVersion
+# 1.31.19041.1
+```
+
 ## Files
 
 | File | Purpose |

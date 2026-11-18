@@ -8,7 +8,7 @@ Class=System
 ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
 Provider=%ProviderName%
 CatalogFile=pcie_bar.cat
-DriverVer=11/16/2026,1.0.0.0
+DriverVer=11/18/2026,1.0.0.1
 PnpLockdown=1
 
 [DestinationDirs]
@@ -40,7 +40,7 @@ ErrorControl=1
 ServiceBinary=%12%\pcie_bar.sys
 
 [PcieBar_KMDF]
-KmdfLibraryVersion=1.33
+KmdfLibraryVersion=1.31
 
 [Strings]
 ProviderName="MS-FPGA1768 Hardware Lab"
