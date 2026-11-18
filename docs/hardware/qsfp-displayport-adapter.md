@@ -170,12 +170,41 @@ The interactive model uses these nominal dimensions, all in millimetres:
 | Mating tongue width | 16.42 |
 | Projection beyond cage | 5.0 |
 | PCB thickness | 1.0 |
-| Sleeve material | TPU 95A |
+| Sleeve material | TPU 95A (PLA for fit check only) |
 
 The DP receptacle is a mid-mount HDGC DP-GD-119PWB (LCSC C7425332) in the model. Confirm
 the recommended PCB thickness, cutout, mounting tabs and shell envelope for the exact part
 before releasing a PCB or sleeve. Print the sleeve with the front face on the bed and check
 the clip supports in the slicer.
+
+PLA is fine for a first dimensional fit check, but the STL assumes TPU 95A. The nominal
+0.1 mm compression ribs do not compress in PLA, and the snap clips are brittle. If printing
+PLA, add 0.1–0.2 mm clearance, use at least four perimeters and 100% infill, orient the
+layers along the clip flex direction, and treat the part as proof-of-fit only. For a
+functional adapter use PETG, ASA, PA or TPU 95A; PLA softens around 55–60 °C and creeps
+under sustained load.
+
+### Minimum bench setup for the retimer test
+
+A PCIe PC is enough to control the card, but it cannot observe the high-speed signal by
+itself. The minimum go/no-go setup is:
+
+- the card in a PC (power and JTAG), or an external 12 V / PCIe-slot supply;
+- a passive electrical QSFP+ loopback (40G/100G class) in the cage, or a cable to a second
+  card;
+- an FPGA design with a GXB PRBS generator/checker and an I2C master for the retimer;
+- Quartus Programmer and, if needed, Signal Tap for the error counter.
+
+This proves that the retimer passes bits at 1.62/2.7/5.4/8.1 Gbps. It does not prove DP
+compliance or analog margin. The loopback also exercises the retimer's RX channels, so
+configure raw mode in both directions if the device has separate TX/RX controls. For
+eye/jitter, use a high-bandwidth differential scope or a BERT, or read the retimer's
+internal eye monitor if the DS250DF810 exposes one. A real DP monitor plus the adapter is
+the final functional test, but it cannot tell you which part of the link is marginal.
+
+A USB-I2C adapter on J10 is enough to read and write the retimer registers before the FPGA
+design is ready. That is the cheapest first step: confirm register access and the raw-mode
+settings, then move to the PRBS loopback.
 
 ## 8. Interactive demo
 
