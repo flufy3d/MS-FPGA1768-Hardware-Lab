@@ -56,11 +56,23 @@ must be checked on the schematic and with a scope before layout.
 - The retimer must pass the DP stream without re-locking. The current working hypothesis
   is raw-data / CDR-bypass mode, with the output mux overridden and the CDR held in reset
   while the rate changes. Exact register names and bit positions must come from the
-  DS250DF810 datasheet, not from this page. The existing rate and CDR notes are in
-  [ethernet-qsfp.md](ethernet-qsfp.md).
+  DS250DF810 datasheet, not from this page.
 - The QSFP+ `Tx1..Tx4` pairs are host outputs. Use the lane order that matches the
   board's FPGA → retimer → cage mapping; it is not sequential. See the QSFP sheet in
   [FPGA_Pinouts.xlsx](../../hardware/pinouts/FPGA_Pinouts.xlsx).
+
+The proposal names three retimer controls. They are listed here so the idea can be
+reviewed, not because their addresses or bit positions are known:
+
+| Control | Proposed value | Intent |
+|---------|----------------|--------|
+| `OVRD_OUT_MUX` | `1` | override the normal output mux |
+| `OUT_MUX_SEL` | Raw data | send the equalised input straight to the driver |
+| `CDR_RESET` | `1` while changing rate | hold the CDR in reset during reconfiguration |
+
+Confirm every name, address and bit position in the DS250DF810 datasheet before writing
+them. The existing community notes for the Ethernet rates are in
+[ethernet-qsfp.md](ethernet-qsfp.md).
 
 ## 2. AUX channel and HPD
 
