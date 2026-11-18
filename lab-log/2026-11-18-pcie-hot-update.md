@@ -116,3 +116,13 @@ Not tested in this run:
 - Logs and test scripts (lab host, not committed): `E:\Projects\fpga1768-hotupdate\`
   `program_20261118_231001.log`, `hw_test_20261118_232338.log`,
   `temp_20261118_232338.log`, `1_program_and_reboot.ps1`, `2_hw_test.ps1`.
+
+## Addendum (2026-11-19): the card dropped after the test
+
+The card was left powered after the test (see step 7). At 23:59 on 2026-11-18, about
+54 minutes after the 23:05:52 power-on, BAR0 reads returned `0xFFFFFFFF` (`TEMP` and `ID`)
+and the FT232H (`USB\VID_0403&PID_6014`) was no longer present, while Windows still listed
+`PCI\VEN_1172&DEV_E003` with status OK (a stale entry). The time of the drop between
+23:24 and 23:59 is not known. This matches the thermal power-off seen on the same day
+without a fan (36 minutes after power-on in an earlier run). Recovery needs an AC power
+cycle. Lesson: do not leave the card powered without airflow after a test.
