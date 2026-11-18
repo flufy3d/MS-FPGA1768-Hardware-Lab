@@ -49,8 +49,8 @@ must be checked on the schematic and with a scope before layout.
 
 ## 1. Main link
 
-- Four bonded GXB TX channels. One fPLL per link rate; DisplayPort rates are 1.62, 2.7,
-  5.4 and 8.1 Gbps per lane.
+- Four GXB TX channels operated as one link. The fPLL is reconfigured for each link rate;
+  DisplayPort rates are 1.62, 2.7, 5.4 and 8.1 Gbps per lane.
 - DP 1.2/1.4 uses 8b/10b coding at all four rates. The FPGA needs a DisplayPort TX IP core
   (Intel or third-party) or a custom framer; the GXB alone only provides the serialiser.
 - The retimer must pass the DP stream without re-locking. The current working hypothesis
@@ -144,7 +144,7 @@ The interactive model uses these nominal dimensions, all in millimetres:
 
 | Item | Value |
 |------|-------|
-| QSFP+ module body | 18.35 × 1.0 (PCB) |
+| QSFP+ PCB width × thickness | 18.35 × 1.0 |
 | DP shell width | 16.1 |
 | Side clearance | ≈1.125 per side |
 | Mating tongue width | 16.42 |
