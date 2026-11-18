@@ -1,7 +1,8 @@
 # Static demos
 
-> Status: built (HTML opens locally), not tested on hardware
+> Status: unknown (design demo; the page renders, but the adapter is not built or tested)
 > Source: design study for this repository, 2026-11-18
+> Last verified: 2026-11-18 (page rendering only)
 
 This folder is the artifact root for the repository's GitHub Pages site. Only static files
 belong here; nothing is executed at build time.
