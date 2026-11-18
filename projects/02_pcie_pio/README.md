@@ -139,6 +139,10 @@ Writes are refused unless the ID matches. The driver requires test signing and
 Secure Boot disabled; see [driver/README.md](driver/README.md) for the build,
 sign, install and uninstall steps.
 
+`pcie_bar_test.exe` options: no argument (read-only check), `--write` (the `A + B`
+test), `--read HEX` (one register), `--temp SECONDS` (logs the `TEMP` register of
+[03_pcie_gen3](../03_pcie_gen3/); this project has no `TEMP` register).
+
 Do **not** use RWEverything to write BAR0 unless the BAR is assigned and memory
 space is enabled. In this lab, writing an unassigned BAR0 through RWEverything
 was followed by a host bugcheck (`0x00000050`). If you use it, read the config

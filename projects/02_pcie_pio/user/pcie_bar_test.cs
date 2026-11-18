@@ -305,16 +305,35 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("  default   read-only: print BAR0 info, ID, A, B, SUM, COUNTER");
         Console.WriteLine("  --write   write A=0x12345678 and B=0x11111111, then verify SUM");
+        Console.WriteLine("  --read HEX      read one 32-bit register at BAR0 + HEX");
+        Console.WriteLine("  --temp SECONDS  print the TEMP register (0x50) every SECONDS; 0 = once");
         Console.WriteLine();
         Console.WriteLine("Register map (16-byte PIO spacing):");
         Console.WriteLine("  0x00 A, 0x10 B, 0x20 SUM, 0x30 COUNTER, 0x40 ID");
+        Console.WriteLine("  0x50 TEMP (projects/03_pcie_gen3 only)");
     }
 
     private static int Main(string[] args)
     {
         bool write = false;
-        foreach (string arg in args)
+        bool doRead = false;
+        uint readOffset = 0;
+        double tempInterval = -1;
+        for (int ai = 0; ai < args.Length; ai++)
         {
+            string arg = args[ai];
+            if (arg == "--read" && ai + 1 < args.Length)
+            {
+                doRead = true;
+                readOffset = Convert.ToUInt32(args[++ai], 16);
+                continue;
+            }
+            if (arg == "--temp" && ai + 1 < args.Length)
+            {
+                tempInterval = double.Parse(args[++ai],
+                    System.Globalization.CultureInfo.InvariantCulture);
+                continue;
+            }
             if (arg == "--help" || arg == "-h" || arg == "/?")
             {
                 PrintHelp();
@@ -374,6 +393,33 @@ internal static class Program
                     "Unexpected ID 0x" + id.ToString("X8") +
                     " (expected 0x" + ExpectedId.ToString("X8") + ").");
                 return 3;
+            }
+
+            if (doRead)
+            {
+                Console.WriteLine("0x{0:X4}: 0x{1:X8}", readOffset, Read32(device, readOffset));
+                return 0;
+            }
+
+            if (tempInterval >= 0)
+            {
+                // TEMP register at 0x50: [9:0] latched code, [25:16] raw code,
+                // [27] eoc, [31:28] conversion counter.
+                // degrees C = code * 693 / 1024 - 265 (Arria 10 vendor formula).
+                while (true)
+                {
+                    uint t = Read32(device, 0x50);
+                    uint code = t & 0x3FF;
+                    uint raw = (t >> 16) & 0x3FF;
+                    Console.WriteLine(
+                        "{0} reg=0x{1:X8} conv={2} eoc={3} code={4} degC={5:F1} raw={6} rawDegC={7:F1}",
+                        DateTime.Now.ToString("s"), t, t >> 28, (t >> 27) & 1,
+                        code, code * 693.0 / 1024.0 - 265.0,
+                        raw, raw * 693.0 / 1024.0 - 265.0);
+                    Console.Out.Flush();
+                    if (tempInterval == 0) return 0;
+                    System.Threading.Thread.Sleep((int)(tempInterval * 1000));
+                }
             }
 
             uint a = Read32(device, 0x00);
