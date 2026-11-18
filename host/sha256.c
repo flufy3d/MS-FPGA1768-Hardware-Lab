@@ -2,7 +2,7 @@
  * sha256.c — small SHA-256 (FIPS 180-4) for logging bitstream checksums
  *
  * Written for this repository; checked against the "abc" test vector at
- * start-up of the self-test (pcie_hot_update selftest).
+ * start-up of the self-test (fpga1768 selftest).
  */
 #include <string.h>
 #include "sha256.h"

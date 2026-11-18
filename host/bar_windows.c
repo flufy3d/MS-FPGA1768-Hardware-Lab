@@ -20,7 +20,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "../../02_pcie_pio/driver/pcie_bar.h"
+#include "../projects/02_pcie_pio/driver/pcie_bar.h"
 #include "bar_access.h"
 
 /* pciprop.h: {3AB22E31-8264-4B4E-9AF5-A8D2D8E33E62}, pid 9 / 10 */

@@ -69,6 +69,7 @@ hardware/                  physical artifacts
 firmware/prebuilt/         small known-good bitstreams (SFL, recovery)
 projects/NN_name/          Quartus projects maintained here
 scripts/                   PowerShell helpers
+host/                      shared C host tool (fpga1768), Windows + Linux backends
 lab-log/YYYY-MM-DD-*.md    dated record of physical experiments
 ```
 
@@ -80,6 +81,7 @@ Where does a new piece of information go?
 | A new pin or signal | `hardware/pinouts/README.md` + CSV + the relevant hardware page |
 | A new Quartus design | `projects/NN_name/` with its own README |
 | A fix for a tool problem | `docs/toolchain/` and, if it is a symptom, `docs/troubleshooting.md` |
+| A host-side command for a PCIe design | `host/` (shared tool) + the project README |
 | A link to someone else's work | `docs/reference/links.md` |
 | An interactive model or demo | `docs/demo/` and `.github/workflows/pages.yml` |
 | A failed experiment | `lab-log/` — failures are data, keep them |

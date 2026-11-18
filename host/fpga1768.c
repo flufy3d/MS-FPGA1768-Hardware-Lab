@@ -1,11 +1,12 @@
 /*
- * pcie_hot_update.c — host tool for projects/04_pcie_hot_update
+ * fpga1768.c — shared host tool for the lab's PCIe designs (projects 03 and up)
  *
- * Loads persona PR bitstreams into the FPGA over PCIe and tests the result.
- * Runs on Linux (sysfs mmap, bar_linux.c) and Windows (KMDF test driver,
- * bar_windows.c). See ../README.md for the register map.
+ * BAR0 register access, die temperature, and loading of persona PR bitstreams
+ * over PCIe (projects/04_pcie_hot_update). Runs on Linux (sysfs mmap,
+ * bar_linux.c) and Windows (KMDF test driver, bar_windows.c). See README.md in
+ * this directory and the README of each project for the register maps.
  *
- *   pcie_hot_update [--bdf BDF] <command> [args]
+ *   fpga1768 [--bdf BDF] <command> [args]
  *
  *   info                 device, link, BAR0 and all registers
  *   read OFF             read 32 bits at BAR0 + OFF (hex)
@@ -365,7 +366,7 @@ static int cmd_selftest(void)
 
 static void usage(void)
 {
-    printf("usage: pcie_hot_update [--bdf BDF] <command> [args]\n\n"
+    printf("usage: fpga1768 [--bdf BDF] <command> [args]\n\n"
            "  info                 device, link, BAR0 and all registers\n"
            "  read OFF             read 32 bits at BAR0 + OFF (hex)\n"
            "  write OFF VAL        write 32 bits at BAR0 + OFF (hex)\n"
