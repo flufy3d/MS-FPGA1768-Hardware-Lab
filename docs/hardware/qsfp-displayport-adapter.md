@@ -189,11 +189,22 @@ under sustained load.
 A PCIe PC is enough to control the card, but it cannot observe the high-speed signal by
 itself. The minimum go/no-go setup is:
 
-- the card in a PC (power and JTAG), or an external 12 V / PCIe-slot supply;
-- a passive electrical QSFP+ loopback (40G/100G class) in the cage, or a cable to a second
-  card;
+- one card in a PC (power and JTAG), or an external 12 V / PCIe-slot supply — a second card
+  is not required;
+- a passive electrical QSFP+ loopback (40G/100G class) in the cage; a QSFP+ cable to a
+  second card is an optional alternative, not a requirement;
 - an FPGA design with a GXB PRBS generator/checker and an I2C master for the retimer;
 - Quartus Programmer and, if needed, Signal Tap for the error counter.
+
+One card is enough because the loopback connects the cage's TX lanes back to its RX lanes;
+the same FPGA generates and checks the PRBS:
+
+```
+FPGA TX → retimer TX → cage TX → loopback → cage RX → retimer RX → FPGA RX
+```
+
+The two-card cable setup is only needed if you want to test a real link between two cards.
+It is not the minimum retimer test.
 
 This proves that the retimer passes bits at 1.62/2.7/5.4/8.1 Gbps. It does not prove DP
 compliance or analog margin. The loopback also exercises the retimer's RX channels, so
