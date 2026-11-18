@@ -16,8 +16,15 @@
 
 - Check `LnkCap` vs `LnkSta`; a Gen2 result with a Gen3 card usually means the slot, the
   riser or the cable is Gen2.
+- **Check the BIOS link-speed setting first.** On the lab's ASUS X99-E (BIOS 1801) the
+  PCIe link speed **Auto** limited the CPU slots to Gen2; setting it to **Gen3** made the
+  factory image train at Gen3 x8 (verified 2026-11-18, see
+  [lab-log/2026-11-18-pcie-gen3-bios.md](../lab-log/2026-11-18-pcie-gen3-bios.md)).
+- Windows does not show the root port's link capability. If an NVIDIA GPU is in the
+  same machine, `nvidia-smi --query-gpu=pcie.link.gen.hostmax --format=csv` shows the
+  root port's maximum generation; `2` means the host side is limiting, not the card.
 - Riser cards and M.2 adapters often break Gen3.
-- The Microsoft bitstream may be configured for Gen2.
+- The Microsoft bitstream is Gen3 x8 capable (it trained Gen3 x8 once the BIOS allowed it).
 
 ## Host bugcheck after BAR0 access
 

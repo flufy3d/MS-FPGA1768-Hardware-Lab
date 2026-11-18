@@ -77,6 +77,15 @@ Interpretation:
   bitstream (which uses Altera IDs `1172:2494`) and not the community PCIe demo.
 - The link only trained at Gen2 x8. This is normal for an x8 slot on an X99 board; the
   design can negotiate Gen3 when the slot and the bitstream allow it.
+  **Correction (2026-11-18, verified):** the Gen2 limit came from the BIOS PCIe
+  link-speed setting **Auto** on the lab's ASUS X99-E; with it set to **Gen3** the same
+  factory image trains at **Gen3 x8**. See
+  [lab-log/2026-11-18-pcie-gen3-bios.md](../lab-log/2026-11-18-pcie-gen3-bios.md).
+- **Note on BAR0 type (2026-11-18, hypothesis):** the "64-bit prefetchable" reading of
+  BAR type bitmap `0x100` above is probably wrong. In this lab a design with a 32-bit
+  non-prefetchable BAR0 reported `DEVPKEY_PciDevice_BarTypes = 0x100`, and a design with
+  64-bit prefetchable BAR0/BAR2 reported `0x20000`. Reading the factory image's config
+  space (`lspci -vvv`, BAR0 at offset `0x10`) would verify it.
 - The card was in a working, powered state when received. The flash was left untouched.
 
 > **Do not assume the pre-programmed bitstream is safe to erase.** It is the only known

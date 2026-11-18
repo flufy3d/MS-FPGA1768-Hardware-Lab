@@ -37,6 +37,11 @@ $ lspci -nn  (equivalent)
 
 - The card trains at **Gen2 x8** with the Microsoft bitstream that was in flash.
 - `MaxLinkSpeed` reports Gen3, `MaxLinkWidth` x8, so the endpoint itself is x8 Gen3.
+- **Update (2026-11-18, verified):** the Gen2 limit was the host BIOS. On the lab's ASUS
+  X99-E (BIOS 1801, card in `PCIEX16_2`, linked x8) the PCIe link speed **Auto** capped the
+  CPU root ports at Gen2; with **Gen3** selected the factory image trains at **Gen3 x8**
+  (`CurrentLinkSpeed` 3, `CurrentLinkWidth` 8). See
+  [lab-log/2026-11-18-pcie-gen3-bios.md](../../lab-log/2026-11-18-pcie-gen3-bios.md).
 - Windows has no driver for vendor `0x1414`, device `0xB204`, class `0xFF` — this is
   expected; it is not a standard class code.
 

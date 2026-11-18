@@ -79,8 +79,10 @@ quartus_ipgenerate pcie_pio -c pcie_pio --run_default_mode_op
 Until 2026-11-18 this project used `Avalon-MM with DMA`, `wrala_hwtcl = 0` (Gen3 x8,
 256-bit). That mode forces BAR0 to 64-bit prefetchable memory and also enables a 64-bit
 prefetchable BAR2. On the lab host Windows assigned neither BAR (problem code 10). Plain
-Avalon-MM offers Gen3 at most x4 (`wrala_hwtcl = 2`); the lab slot trains Gen2 x8 even
-with the factory image, so Gen2 x8 loses nothing here. See
+Avalon-MM offers Gen3 at most x4 (`wrala_hwtcl = 2`). At the time the lab host was
+limited to Gen2 by its BIOS (link speed Auto); with the BIOS set to Gen3 the slot trains
+Gen3 x8 (see [lab-log/2026-11-18-pcie-gen3-bios.md](../../lab-log/2026-11-18-pcie-gen3-bios.md)),
+so a Gen3 variant of this design is now worth testing. See
 [lab-log/2026-11-18-pcie-pio-bar0-32bit.md](../../lab-log/2026-11-18-pcie-pio-bar0-32bit.md).
 
 ## Build
@@ -210,8 +212,9 @@ card was no longer enumerated afterwards. See
 ## Notes
 
 - The card is in an x8 slot, so only PCIe #1 (lanes 0-7) can train.
-- The endpoint advertises Gen3 x8; this slot trained it at Gen2 x8, the same as
-  the factory Microsoft image. Check `LnkCap` vs `LnkSta` before blaming the design.
+- The 2026-11-17 build advertised Gen3 x8 but trained Gen2 x8, the same as the factory
+  image. The cause was the host BIOS link speed (Auto = Gen2 on the lab's ASUS X99-E);
+  check the BIOS and `LnkCap` vs `LnkSta` before blaming the design.
 - The `.sof` is not committed. Rebuild it or use the SHA-256 above.
 - If JTAG reads `0xFFFFFFFF` after a crashed programmer session, power off at the
   PSU. A Windows reboot and `FT_CyclePort` do not clear the FT232H latch.
