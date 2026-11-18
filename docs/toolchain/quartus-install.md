@@ -62,8 +62,13 @@ Test-Path D:\altera_pro\25.1\qsys\lib\com.altera.qsys.common.jar
 valid switch. A real check is:
 
 ```powershell
-qsys-generate pcie_pio_sys.qsys --synthesis=VERILOG --part=10AXF40AA --family="Arria 10"
+. .\scripts\env.ps1   # required: sets QUARTUS_ROOTDIR
+& "$env:QUARTUS_ROOTDIR\..\qsys\bin\qsys-generate.exe" pcie_pio_sys.qsys --synthesis=VERILOG --part=10AXF40AA --family="Arria 10"
 ```
+
+Without `scripts\env.ps1` in the same session the Platform Designer tools (and the
+`qsys-edit` GUI) fail with `Unknown device part 10AXF40AA`; see
+[troubleshooting](../troubleshooting.md#platform-designer-reports-unknown-device-part-10axf40aa).
 
 ## 3. Verify
 

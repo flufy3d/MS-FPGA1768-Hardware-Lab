@@ -139,6 +139,12 @@ the lab log.
   with Quartus Prime Standard (Arria 10 support) where possible.
 - **Paths:** never hard-code an absolute install path in a project file. Scripts discover
   Quartus via `scripts/env.ps1`.
+- **Environment first:** dot-source `scripts/env.ps1` (`. .\scripts\env.ps1`) in the same
+  PowerShell session before running *any* Quartus or Platform Designer tool, including
+  `qsys-generate`, `qsys-script`, `qsys-edit` (GUI) and `quartus_ipgenerate`. Without
+  `QUARTUS_ROOTDIR` these tools cannot resolve the `10AXF40AA` part trait and fail with
+  `Error: Unknown device part 10AXF40AA` or `"Device family" "Arria 10" is out of range`.
+  This is an environment problem, not a reason to switch to the GUI or to change the device.
 - **Plugin:** the JTAG plugin DLL belongs in `<quartus>/bin64/`. Do not copy it into the
   repository's `bin/` or commit Quartus' own binaries.
 - **Device:** use `10AXF40AA` in `.qsf`. If a tool version rejects it, fall back to

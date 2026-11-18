@@ -163,7 +163,12 @@ the whole run. Do not use an empty log as evidence of a hang. Watch the JTAG Ser
 $j = Get-Process jtagserver
 $ci = Get-CimInstance Win32_Process -Filter "ProcessId=$($j.Id)"
 $ci.OtherTransferCount   # DeviceIoControl bytes; must rise during a real program
+($ci.KernelModeTime + $ci.UserModeTime) / 1e7   # CPU seconds; sample twice to get a rate
 ```
+
+`jtagserver` runs as SYSTEM, so from a non-elevated session `Get-Process jtagserver`
+returns an empty `CPU` value (it reads as 0). Use the `Win32_Process` CPU times above, or
+Task Manager, instead.
 
 A 36 MB `.sof` at 5 MHz takes about 10 minutes and pins one core for the whole time. That
 is normal, not a deadlock. An aborted run costs another 10 minutes, so confirm the I/O
@@ -229,6 +234,30 @@ for pure RTL, which is why a hello-world build succeeds; projects that instantia
 (PCIe, DDR4, PLLs) fail. Re-run the Quartus installer and add/repair the Quartus
 core/Platform Designer component, then verify `<install>\qsys\bin\qsys-generate.exe`.
 See [toolchain/quartus-install.md](toolchain/quartus-install.md#2b-platform-designer-required-for-ip).
+
+## Platform Designer reports `Unknown device part 10AXF40AA`
+
+```
+Error: Unknown device part 10AXF40AA
+Error: pcie_pio_sys: "Device family" (deviceFamily) "Arria 10" is out of range: "Cyclone 10 GX"
+Warning: pcie_pio_sys.pcie: Errors found in IP parameterization.
+```
+
+Seen with `qsys-generate`, `qsys-script`, `quartus_ipgenerate` and the `qsys-edit` GUI.
+`10AXF40AA` is a part trait (it maps to base device `10AX115`, speed grade 2); the
+Platform Designer tools only resolve it when `QUARTUS_ROOTDIR` is set. The device database
+is fine — `quartus_sh` resolves the part without it.
+
+Fix: load the environment in the same PowerShell session, then run the tool:
+
+```powershell
+. .\scripts\env.ps1
+& "$env:QUARTUS_ROOTDIR\..\qsys\bin\qsys-generate.exe" ip\pcie_pio_sys\pcie_pio_sys_pcie.ip --synthesis=VERILOG --family="Arria 10" --part=10AXF40AA
+```
+
+Launch the GUI from that same session as well. Do not work around this by changing the
+device in the `.qsf` or the `.ip` files. Verified 2026-11-18 on this card's lab host
+(Quartus Prime Pro 25.1.0 Build 129).
 
 ## Windows test driver will not load
 
