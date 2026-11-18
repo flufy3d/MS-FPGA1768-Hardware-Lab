@@ -34,8 +34,7 @@ the board on eBay in any country. English keeps one canonical version.
 ## 3. Hard rules
 
 1. **Never commit licence files, cracked binaries, key generators or patched vendor
-   executables.** Toolchain problems are solved with the free Standard edition or a proper
-   licence, not with a crack.
+   executables.** Toolchain problems are solved with proper licence.
 2. **Never write the configuration flash without a backup and explicit user confirmation.**
    Volatile `.sof` loads only, by default. A flash write is destructive and irreversible on
    this card because the factory Microsoft image is not published.
