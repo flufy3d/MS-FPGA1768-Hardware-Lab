@@ -138,14 +138,15 @@ circuit.
 
 ## 6. What must be validated before layout
 
-The first three rows are the go/no-go items. If the retimer cannot pass 1.62 Gbps in raw
-mode, stop and redesign the host-side path before spending time on the adapter.
+Retimer raw mode is the only go/no-go item. If it cannot pass 1.62 Gbps, stop and redesign
+the host-side path; the other rows are fixable with a component change, a PCB respin or
+firmware.
 
 | Risk | Why it matters | How to check |
 |------|----------------|--------------|
 | Retimer raw mode | The DS250DF810 may not pass rates below its Ethernet range, or its input equaliser, squelch or output mux may still block a low-rate signal | PRBS at 1.62/2.7/5.4/8.1 Gbps through the retimer; eye/BER at the cage; read status registers |
 | AUX electrical | M-LVDS is not DP AUX: common mode, swing, AC coupling, bias and turnaround differ | Scope AUX± at the DP connector; read EDID from several monitors |
-| Mechanical fit | 16.1 mm DP shell inside an 18.35 mm cage; PCB thickness, latch and plug overmould clearance are tight | Print the TPU sleeve, dry-fit a dummy DP plug in an unpowered cage |
+| Mechanical fit | 16.1 mm DP shell inside an 18.35 mm cage; PCB thickness, latch and plug overmould clearance are tight | Print the PETG sleeve, dry-fit a dummy DP plug in an unpowered cage |
 | DP TX IP and link training | The GXB only serialises; the FPGA still needs a DP TX core, DPCD/EDID handling and a link-training state machine | Prototype with a known-good DP TX IP core or framer; test RBR → HBR2 → HBR3 |
 | AC coupling | DP requires source-side coupling; the retimer output may or may not be coupled | Inspect the board, measure, add capacitors if needed |
 | HPD / IntL levels | 3.3 V HPD into a 1.8 V input can damage the FPGA | Measure the pull-up rail; use a level shifter |
@@ -153,10 +154,6 @@ mode, stop and redesign the host-side path before spending time on the adapter.
 | Signal integrity | 8.1 Gbps through two connectors and a retimer | Eye diagram at the DP connector; tune VOD/equaliser |
 | Power / DP_PWR budget | `DP_PWR` and `VccTx` are separate 3.3 V sources; a sink device may draw up to 500 mA, which exceeds the 1.5 W Class 1 budget on its own | Verify no backfeed; current-limit DP_PWR; add an ideal diode or soft-start |
 | Firmware timing | AUX turnaround is tight at 1 Mbps; I2C adds latency | Measure request-to-reply latency; add a local timeout |
-
-The retimer row is the only one that can invalidate the whole approach. The others are
-engineering risks that can usually be fixed with a component change, a PCB respin or
-firmware.
 
 ## 7. Mechanical envelope
 
@@ -170,52 +167,36 @@ The interactive model uses these nominal dimensions, all in millimetres:
 | Mating tongue width | 16.42 |
 | Projection beyond cage | 5.0 |
 | PCB thickness | 1.0 |
-| Sleeve material | TPU 95A (PLA for fit check only) |
+| Sleeve material | PETG (recommended); TPU 95A for compression fit |
 
 The DP receptacle is a mid-mount HDGC DP-GD-119PWB (LCSC C7425332) in the model. Confirm
-the recommended PCB thickness, cutout, mounting tabs and shell envelope for the exact part
-before releasing a PCB or sleeve. Print the sleeve with the front face on the bed and check
-the clip supports in the slicer.
+the recommended PCB thickness, cutout, mounting tabs and shell envelope before releasing a
+PCB or sleeve. Print with the front face on the bed and check the clip supports in the
+slicer.
 
-PLA is fine for a first dimensional fit check, but the STL assumes TPU 95A. The nominal
-0.1 mm compression ribs do not compress in PLA, and the snap clips are brittle. If printing
-PLA, add 0.1–0.2 mm clearance, use at least four perimeters and 100% infill, orient the
-layers along the clip flex direction, and treat the part as proof-of-fit only. For a
-functional adapter use PETG, ASA, PA or TPU 95A; PLA softens around 55–60 °C and creeps
-under sustained load.
+PETG is the recommended filament: it is tougher than PLA at the clips and handles the
+cage/connector warmth better. The STL assumes TPU 95A, so the 0.1 mm compression ribs do
+not compress in PETG; add 0.1–0.2 mm clearance and use four perimeters. Use TPU 95A only if
+you need the compression fit.
 
 ### Minimum bench setup for the retimer test
 
-A PCIe PC is enough to control the card, but it cannot observe the high-speed signal by
-itself. The minimum go/no-go setup is:
-
-- one card in a PC (power and JTAG), or an external 12 V / PCIe-slot supply — a second card
-  is not required;
-- a passive electrical QSFP+ loopback (40G/100G class) in the cage; a QSFP+ cable to a
-  second card is an optional alternative, not a requirement;
-- an FPGA design with a GXB PRBS generator/checker and an I2C master for the retimer;
-- Quartus Programmer and, if needed, Signal Tap for the error counter.
-
-One card is enough because the loopback connects the cage's TX lanes back to its RX lanes;
-the same FPGA generates and checks the PRBS:
+One card is enough. The loopback connects cage TX back to cage RX, so the same FPGA
+generates and checks the PRBS:
 
 ```
 FPGA TX → retimer TX → cage TX → loopback → cage RX → retimer RX → FPGA RX
 ```
 
-The two-card cable setup is only needed if you want to test a real link between two cards.
-It is not the minimum retimer test.
+You need the card in a PC (power + JTAG), a passive QSFP+ loopback (40G/100G class), and an
+FPGA design with a GXB PRBS generator/checker plus an I2C master. Set raw mode on both TX
+and RX if the retimer has separate controls. A second card and a QSFP+ cable are optional,
+only for a real link test.
 
-This proves that the retimer passes bits at 1.62/2.7/5.4/8.1 Gbps. It does not prove DP
-compliance or analog margin. The loopback also exercises the retimer's RX channels, so
-configure raw mode in both directions if the device has separate TX/RX controls. For
-eye/jitter, use a high-bandwidth differential scope or a BERT, or read the retimer's
-internal eye monitor if the DS250DF810 exposes one. A real DP monitor plus the adapter is
-the final functional test, but it cannot tell you which part of the link is marginal.
-
-A USB-I2C adapter on J10 is enough to read and write the retimer registers before the FPGA
-design is ready. That is the cheapest first step: confirm register access and the raw-mode
-settings, then move to the PRBS loopback.
+This proves bit transparency at 1.62/2.7/5.4/8.1 Gbps, not DP compliance or analog margin.
+For eye/jitter, use a high-bandwidth scope/BERT or the retimer's internal eye monitor. The
+cheapest first step is a USB-I2C adapter on J10: confirm raw-mode register access before
+building the PRBS design.
 
 ## 8. Interactive demo
 
