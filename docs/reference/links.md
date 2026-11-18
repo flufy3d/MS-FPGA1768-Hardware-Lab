@@ -38,6 +38,11 @@
 |------|------|
 | <https://www.intel.com/content/www/us/en/docs/programmable/> | Arria 10 documentation |
 | <https://www.altera.com/downloads/quartus> | Quartus Prime downloads |
+| <https://www.intel.com/content/www/us/en/docs/programmable/683834/25-1/partial-reconfiguration-design-cons.html> | Quartus Prime Pro 25.1 Partial Reconfiguration user guide (used by `projects/04_pcie_hot_update`) |
+| <https://www.intel.com/content/www/us/en/docs/programmable/683871.html> | Arria 10 CvP Initialization and Partial Reconfiguration over PCI Express user guide |
+| <https://intel.com/content/www/us/en/docs/programmable/683856/18-1.html> | AN 784: Partial Reconfiguration over PCI Express reference design for Arria 10 |
+| <https://www.intel.com/content/www/us/en/docs/programmable/683730.html> | AN 813: Hierarchical Partial Reconfiguration over PCI Express for Arria 10 |
+| <https://www.intel.com/content/www/us/en/support/programmable/articles/000074842.html> | Intel KB: use PR over PCIe instead of CvP update on Arria 10 |
 | <https://ftdichip.com/drivers/d2xx-drivers/> | FTDI D2XX driver |
 | <https://ftdichip.com/wp-content/uploads/2021/08/CDM212364_Setup.zip> | FTDI CDM driver package |
 | <https://www.ti.com/product/DS250DF810> | Retimer product page |
