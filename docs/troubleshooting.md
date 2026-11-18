@@ -74,6 +74,13 @@ line. Work through this list:
    fix: the FT232H latches after an aborted Quartus programmer run and stops passing TDO,
    while the FPGA keeps running normally. `FT_CyclePort` (`scripts/ftdi_cycle.py`) is *not*
    enough; VBUS must drop.
+
+   > **Amendment 2026-11-18.** Two distinct states were seen this day, and only one of them
+   > needed a power cycle. An aborted programmer run can leave the FT232H *unopenable*
+   > (no TDO failure, `jtagconfig` still enumerates it); `pnputil /restart-device` on the
+   > `VID_0403&PID_6014` instance cleared that. The stuck-TDO state above is the harder
+   > one. Try the reset-device path first, see
+   > "`quartus_pgm` cannot access the cable (209037) or the device looks in use (209042)".
 1. **Cable / driver**: the FTDI device must be present and `jtagconfig` must list the cable.
    If not, fix that first.
 2. **J5 pin 10**: must be open. Grounding it disables the on-board FT232H.
@@ -108,6 +115,78 @@ required.
 Fix: **full shutdown and cold start** (not a restart). The FPGA reloads its bitstream from
 the QSPI flash and the endpoint returns. If it still does not appear after a cold boot,
 check the 12 V rails and the config flash (see [hardware/fpga.md](hardware/fpga.md)).
+
+## `quartus_pgm` cannot access the cable (209037) or the device looks in use (209042)
+
+Both were seen on the lab host on **2026-11-18**, and both look like a hang rather than an
+error.
+
+**209037, within a few seconds of starting:**
+
+```
+Info (213045): Using programming cable "Microsoft Catapult (64) [USB-0]"
+Info (209060): Started Programmer operation
+Error (209037): JTAG Server can't access selected programming hardware
+```
+
+Something enumerated the cable through the JTAG Server immediately before `quartus_pgm`,
+and the exclusive open then fails. `scripts/program.ps1` calls `jtagconfig` to list the
+cables, so running it after any other `jtagconfig` invocation reproduces this. Call
+`quartus_pgm` directly instead.
+
+**209042, after a long stall:**
+
+```
+Info (209060): Started Programmer operation at 13:15:47
+Error (209042): Application Quartus Programmer on 127.0.0.1 is using the target device
+Error (209012): Operation failed
+Info (209061): Ended Programmer operation at 13:15:47
+Error: Elapsed time: 00:08:41
+```
+
+`Started` and `Ended` in the same second, with most of the elapsed time before them, means
+nothing was programmed. A previous `quartus_pgm` that was killed while holding the device
+leaves it unopenable.
+
+### Telling a slow program from a stuck one
+
+`quartus_pgm` buffers its output when stdout is redirected, so the log stays at 0 bytes for
+the whole run. Do not use an empty log as evidence of a hang. Watch the JTAG Server instead:
+
+| `jtagserver` CPU | Device I/O counters | Meaning |
+|------------------|---------------------|---------|
+| ~0 % | flat | idle, no client |
+| 100 % of one core | **rising** | programming, leave it alone |
+| 100 % of one core | **flat** | open/retry loop, it will fail with 209042 |
+
+```powershell
+$j = Get-Process jtagserver
+$ci = Get-CimInstance Win32_Process -Filter "ProcessId=$($j.Id)"
+$ci.OtherTransferCount   # DeviceIoControl bytes; must rise during a real program
+```
+
+A 36 MB `.sof` at 5 MHz takes about 10 minutes and pins one core for the whole time. That
+is normal, not a deadlock. An aborted run costs another 10 minutes, so confirm the I/O
+counters rise before deciding anything.
+
+### Recovery
+
+```powershell
+Stop-Process -Name quartus_pgm -Force -ErrorAction SilentlyContinue
+Stop-Process -Name jtagserver -Force -ErrorAction SilentlyContinue
+sc.exe stop JTAGServer
+# Reset the FT232H so the next open is clean:
+pnputil /restart-device "USB\VID_0403&PID_6014\5&1CC0E58A&0&6"
+sc.exe start JTAGServer
+# then run quartus_pgm directly, with no jtagconfig in between
+```
+
+On 2026-11-18 `pnputil /restart-device` was enough to clear the state after an aborted
+run; the full AC power cycle described under "JTAG chain broken" was not needed. Restarting
+the JTAG Server alone was **not** enough, and neither was killing the client.
+
+Get the instance id from `Get-PnpDevice -PresentOnly | Where-Object InstanceId -like
+'*VID_0403*'`; it is stable for a given USB port.
 
 ## Programming succeeds but the design does nothing
 
