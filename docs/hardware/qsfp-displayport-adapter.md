@@ -138,17 +138,25 @@ circuit.
 
 ## 6. What must be validated before layout
 
+The first three rows are the go/no-go items. If the retimer cannot pass 1.62 Gbps in raw
+mode, stop and redesign the host-side path before spending time on the adapter.
+
 | Risk | Why it matters | How to check |
 |------|----------------|--------------|
-| Retimer raw mode | The DS250DF810 may not pass rates below its Ethernet range, or may re-lock/squelch | Bench test at 1.62/2.7/5.4/8.1 Gbps; read status registers |
+| Retimer raw mode | The DS250DF810 may not pass rates below its Ethernet range, or its input equaliser, squelch or output mux may still block a low-rate signal | PRBS at 1.62/2.7/5.4/8.1 Gbps through the retimer; eye/BER at the cage; read status registers |
+| AUX electrical | M-LVDS is not DP AUX: common mode, swing, AC coupling, bias and turnaround differ | Scope AUX± at the DP connector; read EDID from several monitors |
+| Mechanical fit | 16.1 mm DP shell inside an 18.35 mm cage; PCB thickness, latch and plug overmould clearance are tight | Print the TPU sleeve, dry-fit a dummy DP plug in an unpowered cage |
+| DP TX IP and link training | The GXB only serialises; the FPGA still needs a DP TX core, DPCD/EDID handling and a link-training state machine | Prototype with a known-good DP TX IP core or framer; test RBR → HBR2 → HBR3 |
 | AC coupling | DP requires source-side coupling; the retimer output may or may not be coupled | Inspect the board, measure, add capacitors if needed |
-| AUX electrical | M-LVDS is not DP AUX: common mode, swing and bias differ | Scope AUX± at the DP connector; test several monitors |
 | HPD / IntL levels | 3.3 V HPD into a 1.8 V input can damage the FPGA | Measure the pull-up rail; use a level shifter |
 | Lane order and polarity | FPGA → retimer → cage mapping is non-obvious | Use the pinout spreadsheet; run a lane/polarity test |
 | Signal integrity | 8.1 Gbps through two connectors and a retimer | Eye diagram at the DP connector; tune VOD/equaliser |
-| Mechanical fit | 16.1 mm DP shell inside an 18.35 mm cage; latch and cable clearance | Print the TPU sleeve, dry-fit in an unpowered cage |
-| Power / backfeed | `DP_PWR` and `VccTx` are separate 3.3 V sources | Verify no backfeed; add an ideal diode or soft-start |
+| Power / DP_PWR budget | `DP_PWR` and `VccTx` are separate 3.3 V sources; a sink device may draw up to 500 mA, which exceeds the 1.5 W Class 1 budget on its own | Verify no backfeed; current-limit DP_PWR; add an ideal diode or soft-start |
 | Firmware timing | AUX turnaround is tight at 1 Mbps; I2C adds latency | Measure request-to-reply latency; add a local timeout |
+
+The retimer row is the only one that can invalidate the whole approach. The others are
+engineering risks that can usually be fixed with a component change, a PCB respin or
+firmware.
 
 ## 7. Mechanical envelope
 
