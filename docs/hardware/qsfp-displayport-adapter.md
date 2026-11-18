@@ -43,9 +43,9 @@ Arria 10 (U1)                  card                        adapter
                                                 └───────────────────────────┘
 ```
 
-The model assumes the FPGA-to-retimer links are already AC-coupled on the card. Whether the
-retimer-to-cage links are also AC-coupled, and whether the adapter must add capacitors,
-must be checked on the schematic and with a scope before layout.
+The model assumes the card (host side) already provides the series AC-coupling
+capacitors. Whether the retimer-to-cage links are also AC-coupled, and whether the adapter
+must add capacitors, must be checked on the schematic and with a scope before layout.
 
 ## 1. Main link
 
