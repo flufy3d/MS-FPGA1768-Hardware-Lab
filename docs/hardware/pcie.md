@@ -1,7 +1,8 @@
 # PCI Express interfaces
 
-> Status: reported (prior art tested both interfaces), link state on this card verified
-> Last verified: 2026-11-17
+> Status: reported (prior art tested both interfaces); link state and PCIe #1 BAR0 MMIO
+> verified on this card
+> Last verified: 2026-11-18
 
 ## Overview
 
@@ -48,12 +49,32 @@ $ lspci -nn  (equivalent)
 | LnkCap | 8 GT/s, x8 |
 | LnkSta | 5 GT/s (Gen2), x8 |
 | Windows | problem code 28 (no driver) |
-| BAR0 | 64 KB, not assigned after a hot PnP scan; BAR test pending |
+| BAR0 | 64 KB, 64-bit prefetchable, not assigned after a hot PnP scan (superseded, see below) |
 
 The endpoint is Gen3-capable; this slot trained it at Gen2 x8, the same as the factory
-image. A host bugcheck during the BAR0 attempt left the card unpowered, so the BAR0
-compute test is not yet complete. See
+image. A host bugcheck during the BAR0 attempt left the card unpowered. See
 [lab-log/2026-11-17-pcie-pio.md](../../lab-log/2026-11-17-pcie-pio.md).
+
+### Lab endpoint (2026-11-18) — verified
+
+Status: verified 2026-11-18 on PCB `M1003380-005`, ASUS X99 host, Windows 10.
+
+The 64-bit prefetchable BAR0 above was never assigned (Windows problem code 10). The
+design was changed to a plain Avalon-MM HIP (Gen2 x8, 128-bit) with a 32-bit
+non-prefetchable BAR0:
+
+| Property | Value |
+|----------|-------|
+| LnkSta | 5 GT/s (Gen2), x8 |
+| `DEVPKEY_PciDevice_BarTypes` | `0x100` (was `0x20000` for the 64-bit prefetchable BAR) |
+| BAR0 | 32-bit non-prefetchable, 64 KB, assigned `0xFAFF0000`–`0xFAFFFFFF` |
+| Interrupt | IRQ 16 |
+| Windows | status OK (problem 0) with `pcie_bar.sys` |
+| BAR0 test | `A + B` passed (`SUM 0x23456789`) |
+
+"Above 4G Decoding" was not tested, so whether this host can assign a 64-bit
+prefetchable BAR with that BIOS option is `unknown`. See
+[lab-log/2026-11-18-pcie-pio-bar0-32bit.md](../../lab-log/2026-11-18-pcie-pio-bar0-32bit.md).
 
 ## Reference design
 

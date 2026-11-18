@@ -1,16 +1,32 @@
 # 03 — PCIe endpoint bring-up
 
-> Status: reported (prior art); endpoint enumerated in this lab on 2026-11-17,
-> BAR0 access not yet verified
+> Status: verified — BAR0 MMIO read/write and the `A + B` test passed on PCB
+> `M1003380-005` (Windows 10, X99 host)
 > Source: prior art + measured on this card
-> Last verified: 2026-11-17 (enumeration and link only)
+> Last verified: 2026-11-18
+
+## Lab status (2026-11-18) — BAR0 test passed
+
+`projects/02_pcie_pio` was switched from `Avalon-MM with DMA` (Gen3 x8 256-bit) to plain
+**Avalon-MM, Gen2 x8 128-bit** (`wrala_hwtcl = 7`) with a **32-bit non-prefetchable 64 KB
+BAR0** and BAR1/BAR2 disabled. After a hot `pnputil /scan-devices` Windows assigned
+`0xFAFF0000`–`0xFAFFFFFF`, the KMDF driver started (problem code 0), and
+`pcie_bar_test.exe --write` returned `SUM 0x23456789` for `A 0x12345678 + B 0x11111111`.
+
+What this proves: the HIP trains, the host assigns a BAR and issues 32-bit MMIO reads and
+writes, and the FPGA computes the result.
+
+If it fails: the DMA variant forces BAR0 (and BAR2) to 64-bit prefetchable memory, which
+this host did not assign (problem code 10, `DEVPKEY_PciDevice_BarTypes = 0x20000`). Check
+that property first; `0x100` means the 32-bit BAR made it into the bitstream. See
+[lab-log/2026-11-18-pcie-pio-bar0-32bit.md](../../lab-log/2026-11-18-pcie-pio-bar0-32bit.md).
 
 ## Goal
 
 Replace the Microsoft bitstream with a design that enumerates as a PCIe endpoint with a
 BAR you control, then poke it from the host.
 
-## Lab status (2026-11-17)
+## Lab status (2026-11-17, superseded)
 
 `projects/02_pcie_pio` was built and loaded over JTAG:
 
@@ -42,10 +58,13 @@ Start from the upstream `Projects/PCIe/PCIe1` project in
   `pcie1_perstn`, `clk_pcie1`, and `leds[7:0]` driven by the PIO output.
 - `Constraints.sdc` — 100 MHz `clk_u59`, PCIe refclk, pin locations in the `.qsf`.
 
-`projects/02_pcie_pio` in this repository uses the same board pins but a different
-system: `wrala_hwtcl = 0` (Gen3 x8, 256-bit), `interface_type_hwtcl = "Avalon-MM with
-DMA"`, and a BAR0 register bank (`A`, `B`, `SUM`, `COUNTER`, `ID`) instead of an LED
-PIO. The DMA engine is unused; only `rxm_bar0` is connected.
+`projects/02_pcie_pio` in this repository uses the same board pins and, since
+2026-11-18, the same HIP mode (`interface_type_hwtcl = "Avalon-MM"`, `wrala_hwtcl = 7`),
+but a BAR0 register bank (`A`, `B`, `SUM`, `COUNTER`, `ID`) plus a 32 KB scratch RAM
+instead of an LED PIO. In plain Avalon-MM mode the BAR0 size is derived from the address
+span behind `rxm_bar0`; the scratch RAM makes it 64 KB. The earlier Gen3 x8 256-bit
+variant needed `Avalon-MM with DMA`, which forces a 64-bit prefetchable BAR0 that the lab
+host did not assign.
 
 Change the vendor/device ID to something unique (e.g. `0x1234:0x0001`) before installing a
 driver, so it does not collide with the Altera dev-kit IDs.

@@ -151,3 +151,12 @@ Windows Defender quarantined a rebuilt `pcie_bar.sys` during this session
 reading it. Excluding the repository path and the driver file path cleared it.
 `inf2cat` then failed with `Unable to retrieve the subject GUID` while the file
 was blocked, which is worth remembering before blaming the INF.
+
+## Correction — later the same day
+
+The "Result" above is superseded. Fix 2 (32-bit non-prefetchable BAR0) was applied later
+on 2026-11-18: Windows assigned a 64 KB window at `0xFAFF0000`, the device started (problem
+code 0) and `pcie_bar_test.exe --write` passed (`SUM 0x23456789`). The root cause of problem
+code 10 was the 64-bit prefetchable BAR0/BAR2 forced by the `Avalon-MM with DMA` HIP mode.
+Fix 1 (Above 4G Decoding) was not tested. See
+[2026-11-18-pcie-pio-bar0-32bit.md](2026-11-18-pcie-pio-bar0-32bit.md).
