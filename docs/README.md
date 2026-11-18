@@ -25,7 +25,7 @@ organised so that a new owner can go from "I have a card" to "I have a bitstream
 - [ddr4.md](hardware/ddr4.md) — two 72-bit DDR4 channels
 - [pcie.md](hardware/pcie.md) — two x8 Gen3 interfaces, refclk, PERST#
 - [ethernet-qsfp.md](hardware/ethernet-qsfp.md) — QSFP+ cage, DS250DF810 retimer, programming it
-- [qsfp-displayport-adapter.md](hardware/qsfp-displayport-adapter.md) — DisplayPort-over-QSFP+ adapter concept and [interactive demo](https://flufy3d.github.io/MS-FPGA1768-Hardware-Lab/) (unknown, not built)
+- [qsfp-displayport-adapter.md](hardware/qsfp-displayport-adapter.md) — DisplayPort-over-QSFP+ adapter concept and [interactive demo](https://flufy3d.github.io/MS-FPGA1768-Hardware-Lab/qsfp-dp-adapter.html) (unknown, not built)
 - [mellanox-nic.md](hardware/mellanox-nic.md) — ConnectX ASIC, its PCIe and XCVR links
 - [i2c.md](hardware/i2c.md) — three I2C buses and every device address
 - [jtag.md](hardware/jtag.md) — on-board FT232H, J5 header, pin behaviour
