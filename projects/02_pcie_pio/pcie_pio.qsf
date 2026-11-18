@@ -116,3 +116,4 @@ set_global_assignment -name IP_FILE ip/pcie_pio_sys/pcie_pio_sys_pio_b.ip
 set_global_assignment -name IP_FILE ip/pcie_pio_sys/pcie_pio_sys_pio_sum.ip
 set_global_assignment -name IP_FILE ip/pcie_pio_sys/pcie_pio_sys_pio_counter.ip
 set_global_assignment -name IP_FILE ip/pcie_pio_sys/pcie_pio_sys_pio_id.ip
+set_global_assignment -name IP_FILE ip/pcie_pio_sys/pcie_pio_sys_scratch_ram.ip
