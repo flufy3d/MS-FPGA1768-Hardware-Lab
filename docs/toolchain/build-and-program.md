@@ -51,7 +51,12 @@ jtagconfig
 | Full compile, hello world (23 ALMs) | 6m00s |
 | `.sof` size | 35,860 KB (fixed by the 10AX115 die, not by the design) |
 | JTAG download at 5 MHz TCK | 8m58s |
-| JTAG download at 10 MHz TCK (projected) | ~4-5 min |
+| JTAG download at 10 MHz TCK (projected) | ~4-5 min — **superseded**, see below |
+| JTAG download at 10 MHz TCK, 36.8 MB `.sof` (measured 2026-11-18, PCB `M1003380-005`) | 8m28s |
+
+Doubling TCK to 10 MHz saved only about 30 s against 8m59s at 5 MHz the same day, so TCK
+is not the main limit of the on-board programmer. See
+[lab-log/2026-11-18-pcie-hot-update.md](../../lab-log/2026-11-18-pcie-hot-update.md).
 
 The JTAG clock is set by the plugin config file `<quartus>\bin64\msftdi.cfg`:
 

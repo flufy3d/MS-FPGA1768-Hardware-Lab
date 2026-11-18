@@ -109,6 +109,21 @@ Conditions that mattered on this host:
 See [lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../../lab-log/2026-11-18-pcie-gen3-bar0-temp.md)
 and [lab-log/2026-11-18-pcie-gen3-dma-retest.md](../../lab-log/2026-11-18-pcie-gen3-dma-retest.md).
 
+### Updating the logic over PCIe (2026-11-18) — verified
+
+Status: verified 2026-11-18 on PCB `M1003380-005`, same host as above.
+
+| Fact | Value | Status |
+|------|-------|--------|
+| Hard IP used by PCIe #1 | `HSSIGEN3X8PCIEHIP_L0` (bottom-left HIP, the CvP-capable one on flip-chip packages) | verified (fitter report) |
+| CvP update mode | not available on Arria 10 (CvP initialization only) | reported ([Intel KB 000074842](https://www.intel.com/content/www/us/en/support/programmable/articles/000074842.html)) |
+| Partial reconfiguration over PCIe | works: PR controller (`alt_pr`, internal host) on BAR0, 13 MB PR bitstream in about 8 s through the test driver; link, BAR0 and Windows device state unchanged | verified |
+
+`projects/04_pcie_hot_update` replaced its compute persona `A + B` → `A − B` → `A + B`
+without JTAG and without a reboot. Only the base image needs JTAG (volatile `.sof`); no
+flash image is involved. See
+[lab-log/2026-11-18-pcie-hot-update.md](../../lab-log/2026-11-18-pcie-hot-update.md).
+
 ## Reference design
 
 The upstream [catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re)
