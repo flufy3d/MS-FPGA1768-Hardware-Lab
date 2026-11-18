@@ -47,5 +47,11 @@ photo shows the inductor/capacitor bank around the FPGA and near the PCIe finger
 - Never insert or remove the card while the system is powered.
 - The auxiliary 12 V connector is not keyed like a PCIe 8-pin; verify polarity.
 - The FPGA die can reach 100 °C junction. Provide airflow.
+  **Measured 2026-11-18 (PCB `M1003380-005`, desktop slot, passive heatsink, no fan):**
+  the die temperature read 86 °C 19 minutes after power-on and 101 °C after 28.5 minutes
+  (about 1.4 °C per minute) with only a Gen3 x8 PCIe endpoint running, and the card lost
+  power 36 minutes after power-on in an earlier run. Values use the vendor sensor formula
+  and were not cross-checked. See
+  [lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../../lab-log/2026-11-18-pcie-gen3-bar0-temp.md).
 - The QSFP cage and retimer are on the 3.3 V rail and can be damaged by a shorted module;
   insert modules only when the card is off.

@@ -81,6 +81,34 @@ non-prefetchable BAR0:
 prefetchable BAR with that BIOS option is `unknown`. See
 [lab-log/2026-11-18-pcie-pio-bar0-32bit.md](../../lab-log/2026-11-18-pcie-pio-bar0-32bit.md).
 
+### Lab endpoint at Gen3 x8 (2026-11-18) — verified
+
+Status: verified 2026-11-18 on PCB `M1003380-005`, ASUS X99-E (BIOS link speed Gen3,
+Above 4G Decoding on), Windows 10.
+
+`projects/03_pcie_gen3` sources (`Avalon-MM with DMA`, external descriptor controller,
+BAR2 disabled):
+
+| Property | Value |
+|----------|-------|
+| LnkSta | 8 GT/s (Gen3), x8 |
+| `DEVPKEY_PciDevice_BarTypes` | `0x10000` |
+| BAR0 | 64-bit prefetchable, 64 KB, assigned `0x383FFFE00000` |
+| Windows | status OK (problem 0) with `pcie_bar.sys` |
+| BAR0 test | `A + B` passed (`SUM 0x23456789`) |
+
+Conditions that mattered on this host:
+
+- The 64-bit BAR is assigned only when the device is present at boot: load the `.sof`,
+  then **warm reboot**. A hot `pnputil /scan-devices` left the device at problem code 10.
+- The 2026-11-17 DMA build failed for design reasons, not host reasons: with the internal
+  DMA descriptor controller the HIP has no `rxm_bar0`, and its enabled but unconnected
+  BAR2 is the probable cause of the failed start (hypothesis; fixed together with the
+  controller change, not isolated).
+
+See [lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../../lab-log/2026-11-18-pcie-gen3-bar0-temp.md)
+and [lab-log/2026-11-18-pcie-gen3-dma-retest.md](../../lab-log/2026-11-18-pcie-gen3-dma-retest.md).
+
 ## Reference design
 
 The upstream [catapult-v3-smartnic-re](https://github.com/tow3rs/catapult-v3-smartnic-re)

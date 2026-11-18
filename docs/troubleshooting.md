@@ -218,6 +218,16 @@ Get the instance id from `Get-PnpDevice -PresentOnly | Where-Object InstanceId -
 ## Fan noise / thermal shutdown
 
 - The card expects server airflow. Add a fan.
+- Symptom of overheating in a desktop: the whole card disappears (FT232H `Present=False`,
+  `quartus_pgm` reports `213013 Programming hardware cable not detected`) 20–40 minutes
+  after power-on, and only an AC power cycle brings it back. Measured 2026-11-18 without a
+  fan: die at 101 °C 28.5 minutes after power-on, card lost at 36 minutes in an earlier
+  run (thermal cause not yet proven by a drop with the sensor running). See
+  [lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../lab-log/2026-11-18-pcie-gen3-bar0-temp.md).
+- `projects/03_pcie_gen3` exposes the Arria 10 die temperature at BAR0 + `0x50`;
+  `pcie_bar_test.exe --temp 5` logs it.
+- After the drop Windows still lists the PCI function as present until the next rescan;
+  check the FT232H instead.
 - `TMP411` at I2C `0x4C` reports local and remote temperatures; read it before long runs.
 - Arria 10 throttles at high junction temperature; timing failures that appear after
   10 minutes of operation are usually thermal.

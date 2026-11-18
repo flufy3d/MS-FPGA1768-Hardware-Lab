@@ -114,3 +114,21 @@ Reading of the raw registry data (decoded by hand, so treat the field decoding a
 
 - Rebuilt `.sof`: `E:\Projects\fpga1768-gen3dma\projects\02_pcie_pio\output_files\pcie_pio.sof`
   (outside the repository), SHA-256 above.
+
+## Addendum — measured time to power loss
+
+A watcher polled device presence every 30 s (`Get-PnpDevice -PresentOnly`).
+
+| Event | Time |
+|-------|------|
+| AC power-on | 18:15 (±1 min, from the Windows boot time 18:15:04) |
+| DMA Gen3 x8 bitstream loaded | 18:29 |
+| Warm reboot | 18:33 |
+| Last sample with the FT232H present | 18:51:05 |
+| First sample with the FT232H gone | 18:51:36 |
+
+The card dropped **about 36 minutes after power-on**, with no fan and slot power only.
+This is the third loss of the day and falls inside the 20–40 minute range of the first
+two. Windows still listed the PCI function as present after the drop (no rescan), so the
+FT232H is the reliable indicator. The cause is still a hypothesis (thermal); no
+temperature was read.

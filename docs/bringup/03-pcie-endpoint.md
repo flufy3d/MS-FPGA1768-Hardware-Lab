@@ -5,6 +5,16 @@
 > Source: prior art + measured on this card
 > Last verified: 2026-11-18
 
+## Lab status (2026-11-18) — Gen3 x8 with a 64-bit BAR also passed
+
+`projects/03_pcie_gen3` (`Avalon-MM with DMA`, Gen3 x8 256-bit, external descriptor
+controller, BAR2 disabled) trained Gen3 x8, got a 64-bit BAR0 at `0x383FFFE00000` and
+passed the same `A + B` test. It needs the host BIOS at Gen3 link speed with Above 4G
+Decoding on, and a **warm reboot after the JTAG load**; a hot scan does not assign the
+64-bit BAR. Start with `02_pcie_pio` (Gen2, 32-bit BAR, works after a hot scan), then move
+to `03_pcie_gen3`. See
+[lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../../lab-log/2026-11-18-pcie-gen3-bar0-temp.md).
+
 ## Lab status (2026-11-18) — BAR0 test passed
 
 `projects/02_pcie_pio` was switched from `Avalon-MM with DMA` (Gen3 x8 256-bit) to plain
