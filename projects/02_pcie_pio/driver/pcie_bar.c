@@ -150,8 +150,11 @@ PcieBarEvtDevicePrepareHardware(
             MmNonCached);
 
         if (context->BarBase == NULL) {
+            context->BarPhysical.QuadPart = 0;
             context->BarLength = 0;
-            return STATUS_INSUFFICIENT_RESOURCES;
+            // Start anyway: the client reports "mapped=0" instead of the whole
+            // device failing to start.
+            return STATUS_SUCCESS;
         }
 
         // The design puts a fixed ID at BAR0 + 0x40. Only a matching ID makes
@@ -167,7 +170,15 @@ PcieBarEvtDevicePrepareHardware(
         return STATUS_SUCCESS;
     }
 
-    return STATUS_DEVICE_CONFIGURATION_ERROR;
+    // No memory BAR was assigned to this function (typical after a PCIe hot-add
+    // on this host). Start anyway so the user-mode client can report it:
+    // GET_INFO returns BarLength=0 and Mapped=0.
+    context->BarBase = NULL;
+    context->BarLength = 0;
+    context->BarPhysical.QuadPart = 0;
+    context->BarValid = 0;
+
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS
