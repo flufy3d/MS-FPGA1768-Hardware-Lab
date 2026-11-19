@@ -253,6 +253,26 @@ cycle were needed. Check the program's CPU time to tell this from a slow but hea
 - Check the level shifters (U25/U39/U44/U45); they are enabled by `PCA9535` outputs on some
   revisions.
 - Do not scan with a 5 V adapter.
+- A scan from the FPGA (project 06) that stops with `TO` at bus 2 address `0x1F`: that
+  target (NIC, reported) holds SCL low for more than 10 ms. The bus is released afterwards;
+  scan `0x20`–`0x77` separately (`fpga1768 i2c scan 2 20 77`). Seen 2026-11-19.
+- `0x27` (PCA9535) and `0x48` did not answer on the lab card (2026-11-19); their absence
+  alone is not a wiring fault.
+- LM25066 current/power read NACK: use `MFR_READ_IIN` `0xD1` / `MFR_READ_PIN` `0xD2`, not
+  the standard PMBus `0x89` / `0x97`.
+
+## PR load ends with status 1 `PR_ERROR`
+
+The whole `.rbf` is written, the PR controller reports status 1, the persona does not
+change; the static region (PCIe link, BAR0, I2C) keeps working.
+
+- Cause seen on 2026-11-19 (project 06): `ON_CHIP_BITSTREAM_DECOMPRESSION OFF` missing from
+  the `.qsf`, so the persona `.rbf` was compressed (7.8 MB instead of 13.2 MB) while the
+  PR controller is built with `CDRATIO 1` (plain data only).
+- Fix: add the assignment to both PR revisions and re-run `quartus_asm` for both. No new
+  fit is needed; the resulting plain `.rbf` matches the `.sof` already on the card.
+- Status 3 instead of 1 means the `.rbf` belongs to another base build; rebuild with
+  `build_pr.ps1` and reload the `.sof`.
 
 ## `qsys-generate` fails with ClassNotFoundException
 

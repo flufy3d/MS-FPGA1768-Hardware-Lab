@@ -1,6 +1,6 @@
 # Power
 
-> Status: partially reported · **Do not treat the rail map as complete**
+> Status: partially reported; 12 V input telemetry verified 2026-11-19 · **Do not treat the rail map as complete**
 
 ## Inputs
 
@@ -23,6 +23,27 @@ QSFP retimer may not lock.
 | U23, U58 | unmarked | DDR4 VDD / VTT, no public datasheet |
 | U38 `CSD17570Q5B` | MOSFET | load switch / OR-ing |
 
+## Measured telemetry
+
+Read over I2C bus #2 from the FPGA with
+[projects/06_i2c_telemetry](../../projects/06_i2c_telemetry/) (`fpga1768 i2c sensors`),
+2026-11-19, PCB `M1003380-005`, card in a desktop slot with a fan on the heatsink, running
+only the project 06 endpoint (die 40.9–41.6 °C). Status: verified; details in the
+[lab log](../../lab-log/2026-11-19-06-i2c.md) and [i2c.md](i2c.md).
+
+| Quantity | Source | Value |
+|----------|--------|-------|
+| 12 V input (`READ_VIN`) | LM25066 `0x42`, `0x88` | 12.179–12.188 V |
+| Output after the hot-swap FET (`READ_VOUT`) | LM25066 `0x42`, `0x8B` | 12.143–12.157 V (about 30–40 mV drop) |
+| LM25066 temperature (`READ_TEMPERATURE_1`) | LM25066 `0x42`, `0x8D` | 40.4–40.8 °C |
+| Input current (`MFR_READ_IIN`) | LM25066 `0x42`, `0xD1` | raw `0x0285`–`0x0296`; amps `unknown` (sense resistor value not known) |
+| Input power (`MFR_READ_PIN`) | LM25066 `0x42`, `0xD2` | raw `0x01A2`–`0x01A5`; watts `unknown` (same reason) |
+| Board temperature | TMP411 `0x4C` local | 40.00 °C |
+
+Converting current and power needs the LM25066 sense resistor RS and the CL pin setting
+(datasheet Table 41: `m = 13661 × RS` or `6854 × RS` for current). Reading RS from the board,
+or fitting the raw value against a known load, would make these verified numbers.
+
 Rail test points are not silkscreened with voltages; measure before probing. The board
 photo shows the inductor/capacitor bank around the FPGA and near the PCIe fingers.
 
@@ -40,7 +61,8 @@ photo shows the inductor/capacitor bank around the FPGA and near the PCIe finger
   internal NVM; read it over I2C before touching it.
 - Whether the card tolerates hot-plug (it is not designed for it — always power off before
   inserting).
-- Current limits programmed into `LM25066`.
+- Current limits programmed into `LM25066`, and its sense resistor value (needed to turn
+  the raw current/power readings into amps and watts).
 
 ## Safety
 
