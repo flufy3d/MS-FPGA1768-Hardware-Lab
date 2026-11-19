@@ -64,6 +64,56 @@ if (-not $progRoot) {
 }
 $env:QUARTUS_PROGRAMMER_ROOT = $progRoot
 
+# Questa is a separate install, not part of the Quartus tree. Prefer a standalone
+# simulator (2024.1 on the lab host), then fall back to the copies that some
+# Quartus Prime Pro packages ship next to the Quartus root.
+function Find-QuestaBin {
+    $candidates = @()
+    if ($env:QUESTA_ROOTDIR) {
+        $candidates += $env:QUESTA_ROOTDIR
+        $candidates += (Join-Path $env:QUESTA_ROOTDIR 'win64')
+    }
+    $candidates += @(
+        'D:\questasim64_2024.1\win64',
+        'C:\questasim64_2024.1\win64',
+        (Join-Path $root '..\questa_fse\win64'),
+        (Join-Path $root '..\questa_fe\win64')
+    )
+    foreach ($pattern in @('D:\questa*\win64', 'C:\questa*\win64')) {
+        $candidates += Get-ChildItem -Path $pattern -Directory -ErrorAction SilentlyContinue |
+                       Sort-Object FullName -Descending |
+                       ForEach-Object { $_.FullName }
+    }
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path (Join-Path $candidate 'vsim.exe'))) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+    return $null
+}
+
+$questaBin = Find-QuestaBin
+$env:QUESTA_BIN = $questaBin
+if ($questaBin) {
+    $env:QUESTA_ROOTDIR = Split-Path $questaBin -Parent
+    if ($env:Path -notlike "*$questaBin*") {
+        $env:Path = "$questaBin;$env:Path"
+    }
+
+    # Questa needs a Siemens licence, which the Quartus licence file does not
+    # contain. Use the machine-wide Questa licence when the user has not
+    # configured a licence source. SALT_LICENSE_SERVER is the 2024.1+ variable;
+    # a local licence file is accepted as its value.
+    if (-not $env:SALT_LICENSE_SERVER -and -not $env:MGLS_LICENSE_FILE) {
+        foreach ($lic in @(
+            'C:\ProgramData\MentorGraphics\License\license.dat',
+            (Join-Path (Split-Path $questaBin -Parent) 'license.dat')
+        )) {
+            if (Test-Path $lic) { $env:SALT_LICENSE_SERVER = $lic; break }
+        }
+    }
+}
+
 # Quartus reads the licence path from LM_LICENSE_FILE. A shell started before the
 # user set it will not have it, so import the per-user value when missing.
 if (-not $env:LM_LICENSE_FILE) {
@@ -89,3 +139,11 @@ $version | ForEach-Object { Write-Host "  $_" }
 Write-Host "Plugins      :" -ForegroundColor Green
 Get-ChildItem (Join-Path $bin64 'jtag_hw_*.dll') -ErrorAction SilentlyContinue |
     ForEach-Object { Write-Host "  $($_.Name)" }
+
+if ($questaBin) {
+    Write-Host "Questa bin   : $questaBin" -ForegroundColor Green
+    $questaVersion = & (Join-Path $questaBin 'vsim.exe') -version 2>&1 | Select-Object -First 1
+    if ($questaVersion) { Write-Host "  $questaVersion" }
+} else {
+    Write-Host "Questa       : not found (simulation only; set QUESTA_ROOTDIR)" -ForegroundColor Yellow
+}

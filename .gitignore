@@ -68,6 +68,11 @@ projects/03_pcie_gen3/pcie_gen3_sys/
 projects/03_pcie_gen3/ip/pcie_gen3_sys/*/
 projects/04_pcie_hot_update/pcie_hot_update_sys/
 projects/04_pcie_hot_update/ip/pcie_hot_update_sys/*/
+projects/05_shell/shell_sys/
+projects/05_shell/ip/shell_sys/*/
+projects/05_shell/*.log
+projects/05_shell/gen.err
+projects/05_shell/*_summary.csv
 *.qsys.legacy
 
 # Quartus temporary clearbox files
@@ -76,3 +81,7 @@ tmp-clearbox/
 # Windows test driver build outputs
 projects/02_pcie_pio/driver/build/
 projects/02_pcie_pio/user/build/
+projects/05_shell/sim/work/
+projects/05_shell/sim/transcript
+projects/05_shell/sim/*.log
+projects/05_shell/sim/*.vstf

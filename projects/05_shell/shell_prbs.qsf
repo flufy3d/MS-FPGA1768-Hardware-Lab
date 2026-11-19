@@ -1,0 +1,459 @@
+# -------------------------------------------------------------------------- #
+# shell_prbs.qsf — Microsoft FPGA 1768 / Catapult v3 "Longs Peak"
+#
+# PR IMPLEMENTATION revision of the shell. It imports the placed and routed
+# static region of the base revision (output_files/shell_static.qdb, exported
+# by build_pr.ps1) and implements persona_prbs (PRBS-31 memory test) in the
+# same PR region.
+#
+# Device, pin and PR region settings are a copy of shell.qsf. Keep the two
+# in sync. Only the persona source file and the "Partial reconfiguration"
+# block differ.
+#
+# Volatile JTAG configuration only. The configuration flash is not written.
+# -------------------------------------------------------------------------- #
+
+set_global_assignment -name FAMILY "Arria 10"
+set_global_assignment -name DEVICE 10AXF40AA
+set_global_assignment -name TOP_LEVEL_ENTITY shell
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 25.1.0
+set_global_assignment -name LAST_QUARTUS_VERSION "25.1.0 SP0.36 Pro Edition"
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 100
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+
+# Source files (static region)
+set_global_assignment -name SYSTEMVERILOG_FILE shell.sv
+set_global_assignment -name SYSTEMVERILOG_FILE shell_regs.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ddr_port.sv
+set_global_assignment -name SYSTEMVERILOG_FILE sync_bits.sv
+set_global_assignment -name SDC_FILE shell.sdc
+set_global_assignment -name QSYS_FILE shell_sys.qsys
+# Persona of this revision
+set_global_assignment -name SYSTEMVERILOG_FILE personas/ddr_test_engine.sv
+set_global_assignment -name SYSTEMVERILOG_FILE personas/ddr_test_csr.sv
+set_global_assignment -name SYSTEMVERILOG_FILE personas/persona_prbs.sv
+
+# --------------------------------------------------------------------------
+# Configuration scheme (matches the on-board 1 Gb QSPI flash, ASx4)
+# --------------------------------------------------------------------------
+set_global_assignment -name STRATIXV_CONFIGURATION_SCHEME "ACTIVE SERIAL X4"
+set_global_assignment -name ACTIVE_SERIAL_CLOCK FREQ_100MHZ
+set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name ENABLE_OCT_DONE OFF
+
+# --------------------------------------------------------------------------
+# Clocks, PCIe — same as projects/04_pcie_hot_update
+# --------------------------------------------------------------------------
+
+# 100 MHz board oscillator U59 / CLKUSR (AP20)
+set_location_assignment PIN_AP20 -to clk_100
+set_instance_assignment -name IO_STANDARD "1.8 V" -to clk_100
+# AP20 (CLKUSR) has no dedicated path to an IOPLL reference clock input; the
+# 50 MHz PLL takes clk_100 from the global clock network.
+set_instance_assignment -name GLOBAL_SIGNAL GLOBAL_CLOCK -to clk_100
+
+# PCIe #1 reference clock, 100 MHz LVDS from U57/U56 (AN29/AN28)
+set_location_assignment PIN_AN29 -to clk_pcie1
+set_location_assignment PIN_AN28 -to "clk_pcie1(n)"
+set_instance_assignment -name IO_STANDARD LVDS -to clk_pcie1
+
+# PCIe #1 PERST# (AW16)
+set_location_assignment PIN_AW16 -to pcie1_perstn
+set_instance_assignment -name IO_STANDARD "1.8 V" -to pcie1_perstn
+
+# PCIe #1 receive lanes 0-7
+set_location_assignment PIN_AN33 -to pcie1_rx[0]
+set_location_assignment PIN_AN32 -to "pcie1_rx[0](n)"
+set_location_assignment PIN_AM31 -to pcie1_rx[1]
+set_location_assignment PIN_AM30 -to "pcie1_rx[1](n)"
+set_location_assignment PIN_AM35 -to pcie1_rx[2]
+set_location_assignment PIN_AM34 -to "pcie1_rx[2](n)"
+set_location_assignment PIN_AL33 -to pcie1_rx[3]
+set_location_assignment PIN_AL32 -to "pcie1_rx[3](n)"
+set_location_assignment PIN_AK31 -to pcie1_rx[4]
+set_location_assignment PIN_AK30 -to "pcie1_rx[4](n)"
+set_location_assignment PIN_AK35 -to pcie1_rx[5]
+set_location_assignment PIN_AK34 -to "pcie1_rx[5](n)"
+set_location_assignment PIN_AJ33 -to pcie1_rx[6]
+set_location_assignment PIN_AJ32 -to "pcie1_rx[6](n)"
+set_location_assignment PIN_AH31 -to pcie1_rx[7]
+set_location_assignment PIN_AH30 -to "pcie1_rx[7](n)"
+
+# PCIe #1 transmit lanes 0-7
+set_location_assignment PIN_AU37 -to pcie1_tx[0]
+set_location_assignment PIN_AU36 -to "pcie1_tx[0](n)"
+set_location_assignment PIN_AT35 -to pcie1_tx[1]
+set_location_assignment PIN_AT34 -to "pcie1_tx[1](n)"
+set_location_assignment PIN_AT39 -to pcie1_tx[2]
+set_location_assignment PIN_AT38 -to "pcie1_tx[2](n)"
+set_location_assignment PIN_AR37 -to pcie1_tx[3]
+set_location_assignment PIN_AR36 -to "pcie1_tx[3](n)"
+set_location_assignment PIN_AP35 -to pcie1_tx[4]
+set_location_assignment PIN_AP34 -to "pcie1_tx[4](n)"
+set_location_assignment PIN_AP39 -to pcie1_tx[5]
+set_location_assignment PIN_AP38 -to "pcie1_tx[5](n)"
+set_location_assignment PIN_AN37 -to pcie1_tx[6]
+set_location_assignment PIN_AN36 -to "pcie1_tx[6](n)"
+set_location_assignment PIN_AM39 -to pcie1_tx[7]
+set_location_assignment PIN_AM38 -to "pcie1_tx[7](n)"
+
+# Transceiver I/O standards
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[0]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[1]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[2]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[3]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[4]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[5]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[6]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_rx[7]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[0]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[1]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[2]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[3]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[4]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[5]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[6]
+set_instance_assignment -name IO_STANDARD "HIGH SPEED DIFFERENTIAL I/O" -to pcie1_tx[7]
+
+# --------------------------------------------------------------------------
+# LEDs — docs/hardware/leds.md (1.8 V, active high)
+# --------------------------------------------------------------------------
+set_location_assignment PIN_AM17 -to led[0]
+set_location_assignment PIN_AH18 -to led[1]
+set_location_assignment PIN_AJ18 -to led[2]
+set_location_assignment PIN_AH17 -to led[3]
+set_location_assignment PIN_AJ16 -to led[4]
+set_location_assignment PIN_AK17 -to led[5]
+set_location_assignment PIN_AK16 -to led[6]
+set_location_assignment PIN_AK18 -to led[7]
+set_location_assignment PIN_AL18 -to led[8]
+set_instance_assignment -name IO_STANDARD "1.8 V" -to led[*]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to led[*]
+set_instance_assignment -name SLEW_RATE 0 -to led[*]
+
+# --------------------------------------------------------------------------
+# DDR4 reference clocks (266.667 MHz LVDS) — docs/hardware/clocks.md
+# --------------------------------------------------------------------------
+set_location_assignment PIN_J3 -to top_refclk
+set_location_assignment PIN_K3 -to "top_refclk(n)"
+set_instance_assignment -name IO_STANDARD LVDS -to top_refclk
+set_location_assignment PIN_AG5 -to bot_refclk
+set_location_assignment PIN_AG6 -to "bot_refclk(n)"
+set_instance_assignment -name IO_STANDARD LVDS -to bot_refclk
+
+# DDR4 top channel, devices U7-U11, banks 3E/3F/3G
+# Source: hardware/pinouts/csv/fpga_1_DDR4_Interface_1_Top_Pinout.csv
+# I/O standards and termination are set by the EMIF IP.
+set_location_assignment PIN_L5 -to top_mem_a[0]
+set_location_assignment PIN_M5 -to top_mem_a[1]
+set_location_assignment PIN_L4 -to top_mem_a[2]
+set_location_assignment PIN_M4 -to top_mem_a[3]
+set_location_assignment PIN_M6 -to top_mem_a[4]
+set_location_assignment PIN_M7 -to top_mem_a[5]
+set_location_assignment PIN_K7 -to top_mem_a[6]
+set_location_assignment PIN_L7 -to top_mem_a[7]
+set_location_assignment PIN_K5 -to top_mem_a[8]
+set_location_assignment PIN_K6 -to top_mem_a[9]
+set_location_assignment PIN_N6 -to top_mem_a[10]
+set_location_assignment PIN_N7 -to top_mem_a[11]
+set_location_assignment PIN_L3 -to top_mem_a[12]
+set_location_assignment PIN_K1 -to top_mem_a[13]
+set_location_assignment PIN_K2 -to top_mem_a[14]
+set_location_assignment PIN_H3 -to top_mem_a[15]
+set_location_assignment PIN_H4 -to top_mem_a[16]
+set_location_assignment PIN_J1 -to top_mem_ba[0]
+set_location_assignment PIN_J4 -to top_mem_ba[1]
+set_location_assignment PIN_J5 -to top_mem_bg[0]
+set_location_assignment PIN_N8 -to top_mem_ck[0]
+set_location_assignment PIN_M9 -to top_mem_ck_n[0]
+set_location_assignment PIN_P9 -to top_mem_cke[0]
+set_location_assignment PIN_P8 -to top_mem_odt[0]
+set_location_assignment PIN_P10 -to top_mem_par[0]
+set_location_assignment PIN_R11 -to top_mem_act_n[0]
+set_location_assignment PIN_E5 -to top_mem_alert_n[0]
+set_location_assignment PIN_P11 -to top_mem_cs_n[0]
+set_location_assignment PIN_L9 -to top_mem_reset_n[0]
+set_location_assignment PIN_F5 -to top_mem_dq[0]
+set_location_assignment PIN_C4 -to top_mem_dq[1]
+set_location_assignment PIN_C3 -to top_mem_dq[2]
+set_location_assignment PIN_D3 -to top_mem_dq[3]
+set_location_assignment PIN_C2 -to top_mem_dq[4]
+set_location_assignment PIN_F7 -to top_mem_dq[5]
+set_location_assignment PIN_E7 -to top_mem_dq[6]
+set_location_assignment PIN_D6 -to top_mem_dq[7]
+set_location_assignment PIN_C7 -to top_mem_dq[8]
+set_location_assignment PIN_D8 -to top_mem_dq[9]
+set_location_assignment PIN_B7 -to top_mem_dq[10]
+set_location_assignment PIN_B5 -to top_mem_dq[11]
+set_location_assignment PIN_F8 -to top_mem_dq[12]
+set_location_assignment PIN_B4 -to top_mem_dq[13]
+set_location_assignment PIN_A5 -to top_mem_dq[14]
+set_location_assignment PIN_E8 -to top_mem_dq[15]
+set_location_assignment PIN_D1 -to top_mem_dq[16]
+set_location_assignment PIN_G1 -to top_mem_dq[17]
+set_location_assignment PIN_C1 -to top_mem_dq[18]
+set_location_assignment PIN_G2 -to top_mem_dq[19]
+set_location_assignment PIN_E1 -to top_mem_dq[20]
+set_location_assignment PIN_F4 -to top_mem_dq[21]
+set_location_assignment PIN_F2 -to top_mem_dq[22]
+set_location_assignment PIN_H2 -to top_mem_dq[23]
+set_location_assignment PIN_K8 -to top_mem_dq[24]
+set_location_assignment PIN_G7 -to top_mem_dq[25]
+set_location_assignment PIN_G9 -to top_mem_dq[26]
+set_location_assignment PIN_J6 -to top_mem_dq[27]
+set_location_assignment PIN_H8 -to top_mem_dq[28]
+set_location_assignment PIN_F9 -to top_mem_dq[29]
+set_location_assignment PIN_H7 -to top_mem_dq[30]
+set_location_assignment PIN_H6 -to top_mem_dq[31]
+set_location_assignment PIN_J9 -to top_mem_dq[32]
+set_location_assignment PIN_K11 -to top_mem_dq[33]
+set_location_assignment PIN_J11 -to top_mem_dq[34]
+set_location_assignment PIN_N13 -to top_mem_dq[35]
+set_location_assignment PIN_M12 -to top_mem_dq[36]
+set_location_assignment PIN_K10 -to top_mem_dq[37]
+set_location_assignment PIN_N12 -to top_mem_dq[38]
+set_location_assignment PIN_M11 -to top_mem_dq[39]
+set_location_assignment PIN_P4 -to top_mem_dq[40]
+set_location_assignment PIN_P1 -to top_mem_dq[41]
+set_location_assignment PIN_N3 -to top_mem_dq[42]
+set_location_assignment PIN_R3 -to top_mem_dq[43]
+set_location_assignment PIN_N4 -to top_mem_dq[44]
+set_location_assignment PIN_R2 -to top_mem_dq[45]
+set_location_assignment PIN_M2 -to top_mem_dq[46]
+set_location_assignment PIN_R1 -to top_mem_dq[47]
+set_location_assignment PIN_R5 -to top_mem_dq[48]
+set_location_assignment PIN_U7 -to top_mem_dq[49]
+set_location_assignment PIN_T5 -to top_mem_dq[50]
+set_location_assignment PIN_T7 -to top_mem_dq[51]
+set_location_assignment PIN_P5 -to top_mem_dq[52]
+set_location_assignment PIN_W6 -to top_mem_dq[53]
+set_location_assignment PIN_P6 -to top_mem_dq[54]
+set_location_assignment PIN_W5 -to top_mem_dq[55]
+set_location_assignment PIN_U4 -to top_mem_dq[56]
+set_location_assignment PIN_W4 -to top_mem_dq[57]
+set_location_assignment PIN_T2 -to top_mem_dq[58]
+set_location_assignment PIN_V4 -to top_mem_dq[59]
+set_location_assignment PIN_U2 -to top_mem_dq[60]
+set_location_assignment PIN_U1 -to top_mem_dq[61]
+set_location_assignment PIN_T3 -to top_mem_dq[62]
+set_location_assignment PIN_W3 -to top_mem_dq[63]
+set_location_assignment PIN_R7 -to top_mem_dq[64]
+set_location_assignment PIN_V8 -to top_mem_dq[65]
+set_location_assignment PIN_T8 -to top_mem_dq[66]
+set_location_assignment PIN_U9 -to top_mem_dq[67]
+set_location_assignment PIN_T9 -to top_mem_dq[68]
+set_location_assignment PIN_V9 -to top_mem_dq[69]
+set_location_assignment PIN_U11 -to top_mem_dq[70]
+set_location_assignment PIN_R6 -to top_mem_dq[71]
+set_location_assignment PIN_D4 -to top_mem_dqs[0]
+set_location_assignment PIN_B6 -to top_mem_dqs[1]
+set_location_assignment PIN_E3 -to top_mem_dqs[2]
+set_location_assignment PIN_G5 -to top_mem_dqs[3]
+set_location_assignment PIN_M10 -to top_mem_dqs[4]
+set_location_assignment PIN_N1 -to top_mem_dqs[5]
+set_location_assignment PIN_U5 -to top_mem_dqs[6]
+set_location_assignment PIN_V1 -to top_mem_dqs[7]
+set_location_assignment PIN_W9 -to top_mem_dqs[8]
+set_location_assignment PIN_D5 -to top_mem_dqs_n[0]
+set_location_assignment PIN_C6 -to top_mem_dqs_n[1]
+set_location_assignment PIN_F3 -to top_mem_dqs_n[2]
+set_location_assignment PIN_G6 -to top_mem_dqs_n[3]
+set_location_assignment PIN_N11 -to top_mem_dqs_n[4]
+set_location_assignment PIN_N2 -to top_mem_dqs_n[5]
+set_location_assignment PIN_U6 -to top_mem_dqs_n[6]
+set_location_assignment PIN_V2 -to top_mem_dqs_n[7]
+set_location_assignment PIN_W10 -to top_mem_dqs_n[8]
+set_location_assignment PIN_E6 -to top_mem_dbi_n[0]
+set_location_assignment PIN_C8 -to top_mem_dbi_n[1]
+set_location_assignment PIN_E2 -to top_mem_dbi_n[2]
+set_location_assignment PIN_J8 -to top_mem_dbi_n[3]
+set_location_assignment PIN_J10 -to top_mem_dbi_n[4]
+set_location_assignment PIN_M1 -to top_mem_dbi_n[5]
+set_location_assignment PIN_V7 -to top_mem_dbi_n[6]
+set_location_assignment PIN_T4 -to top_mem_dbi_n[7]
+set_location_assignment PIN_V11 -to top_mem_dbi_n[8]
+set_location_assignment PIN_L2 -to top_oct_rzqin
+
+# DDR4 bottom channel, devices U2-U6, banks 3B/3C/3D
+# Source: hardware/pinouts/csv/fpga_2_DDR4_Interface_2_Bot_Pinout.csv
+# I/O standards and termination are set by the EMIF IP.
+set_location_assignment PIN_AN3 -to bot_mem_a[0]
+set_location_assignment PIN_AM4 -to bot_mem_a[1]
+set_location_assignment PIN_AL3 -to bot_mem_a[2]
+set_location_assignment PIN_AL4 -to bot_mem_a[3]
+set_location_assignment PIN_AL5 -to bot_mem_a[4]
+set_location_assignment PIN_AK5 -to bot_mem_a[5]
+set_location_assignment PIN_AK6 -to bot_mem_a[6]
+set_location_assignment PIN_AJ6 -to bot_mem_a[7]
+set_location_assignment PIN_AK3 -to bot_mem_a[8]
+set_location_assignment PIN_AJ4 -to bot_mem_a[9]
+set_location_assignment PIN_AJ5 -to bot_mem_a[10]
+set_location_assignment PIN_AH6 -to bot_mem_a[11]
+set_location_assignment PIN_AG7 -to bot_mem_a[12]
+set_location_assignment PIN_AJ3 -to bot_mem_a[13]
+set_location_assignment PIN_AH3 -to bot_mem_a[14]
+set_location_assignment PIN_AF7 -to bot_mem_a[15]
+set_location_assignment PIN_AE7 -to bot_mem_a[16]
+set_location_assignment PIN_AF5 -to bot_mem_ba[0]
+set_location_assignment PIN_AH4 -to bot_mem_ba[1]
+set_location_assignment PIN_AG4 -to bot_mem_bg[0]
+set_location_assignment PIN_AK1 -to bot_mem_ck[0]
+set_location_assignment PIN_AK2 -to bot_mem_ck_n[0]
+set_location_assignment PIN_AM1 -to bot_mem_cke[0]
+set_location_assignment PIN_AR1 -to bot_mem_odt[0]
+set_location_assignment PIN_AH2 -to bot_mem_par[0]
+set_location_assignment PIN_AL2 -to bot_mem_act_n[0]
+set_location_assignment PIN_Y3 -to bot_mem_alert_n[0]
+set_location_assignment PIN_AM2 -to bot_mem_cs_n[0]
+set_location_assignment PIN_AN2 -to bot_mem_reset_n[0]
+set_location_assignment PIN_AB1 -to bot_mem_dq[0]
+set_location_assignment PIN_AA4 -to bot_mem_dq[1]
+set_location_assignment PIN_AB2 -to bot_mem_dq[2]
+set_location_assignment PIN_Y1 -to bot_mem_dq[3]
+set_location_assignment PIN_AC3 -to bot_mem_dq[4]
+set_location_assignment PIN_Y2 -to bot_mem_dq[5]
+set_location_assignment PIN_AC4 -to bot_mem_dq[6]
+set_location_assignment PIN_W1 -to bot_mem_dq[7]
+set_location_assignment PIN_AD6 -to bot_mem_dq[8]
+set_location_assignment PIN_Y7 -to bot_mem_dq[9]
+set_location_assignment PIN_AD5 -to bot_mem_dq[10]
+set_location_assignment PIN_Y6 -to bot_mem_dq[11]
+set_location_assignment PIN_AC6 -to bot_mem_dq[12]
+set_location_assignment PIN_AA5 -to bot_mem_dq[13]
+set_location_assignment PIN_AD4 -to bot_mem_dq[14]
+set_location_assignment PIN_Y5 -to bot_mem_dq[15]
+set_location_assignment PIN_AB9 -to bot_mem_dq[16]
+set_location_assignment PIN_Y10 -to bot_mem_dq[17]
+set_location_assignment PIN_AA9 -to bot_mem_dq[18]
+set_location_assignment PIN_Y8 -to bot_mem_dq[19]
+set_location_assignment PIN_AB11 -to bot_mem_dq[20]
+set_location_assignment PIN_W8 -to bot_mem_dq[21]
+set_location_assignment PIN_AB10 -to bot_mem_dq[22]
+set_location_assignment PIN_AB7 -to bot_mem_dq[23]
+set_location_assignment PIN_AE10 -to bot_mem_dq[24]
+set_location_assignment PIN_AD9 -to bot_mem_dq[25]
+set_location_assignment PIN_AE11 -to bot_mem_dq[26]
+set_location_assignment PIN_AC9 -to bot_mem_dq[27]
+set_location_assignment PIN_AD8 -to bot_mem_dq[28]
+set_location_assignment PIN_AC8 -to bot_mem_dq[29]
+set_location_assignment PIN_AD10 -to bot_mem_dq[30]
+set_location_assignment PIN_AC11 -to bot_mem_dq[31]
+set_location_assignment PIN_AH11 -to bot_mem_dq[32]
+set_location_assignment PIN_AJ8 -to bot_mem_dq[33]
+set_location_assignment PIN_AJ11 -to bot_mem_dq[34]
+set_location_assignment PIN_AJ9 -to bot_mem_dq[35]
+set_location_assignment PIN_AF12 -to bot_mem_dq[36]
+set_location_assignment PIN_AH9 -to bot_mem_dq[37]
+set_location_assignment PIN_AG12 -to bot_mem_dq[38]
+set_location_assignment PIN_AG11 -to bot_mem_dq[39]
+set_location_assignment PIN_AK10 -to bot_mem_dq[40]
+set_location_assignment PIN_AM6 -to bot_mem_dq[41]
+set_location_assignment PIN_AK8 -to bot_mem_dq[42]
+set_location_assignment PIN_AN6 -to bot_mem_dq[43]
+set_location_assignment PIN_AL8 -to bot_mem_dq[44]
+set_location_assignment PIN_AL7 -to bot_mem_dq[45]
+set_location_assignment PIN_AM9 -to bot_mem_dq[46]
+set_location_assignment PIN_AK7 -to bot_mem_dq[47]
+set_location_assignment PIN_AU1 -to bot_mem_dq[48]
+set_location_assignment PIN_AR3 -to bot_mem_dq[49]
+set_location_assignment PIN_AT2 -to bot_mem_dq[50]
+set_location_assignment PIN_AP4 -to bot_mem_dq[51]
+set_location_assignment PIN_AU2 -to bot_mem_dq[52]
+set_location_assignment PIN_AN4 -to bot_mem_dq[53]
+set_location_assignment PIN_AT3 -to bot_mem_dq[54]
+set_location_assignment PIN_AP5 -to bot_mem_dq[55]
+set_location_assignment PIN_AU5 -to bot_mem_dq[56]
+set_location_assignment PIN_AU4 -to bot_mem_dq[57]
+set_location_assignment PIN_AR7 -to bot_mem_dq[58]
+set_location_assignment PIN_AT4 -to bot_mem_dq[59]
+set_location_assignment PIN_AV4 -to bot_mem_dq[60]
+set_location_assignment PIN_AR6 -to bot_mem_dq[61]
+set_location_assignment PIN_AW5 -to bot_mem_dq[62]
+set_location_assignment PIN_AW4 -to bot_mem_dq[63]
+set_location_assignment PIN_AE1 -to bot_mem_dq[64]
+set_location_assignment PIN_AD3 -to bot_mem_dq[65]
+set_location_assignment PIN_AF2 -to bot_mem_dq[66]
+set_location_assignment PIN_AE2 -to bot_mem_dq[67]
+set_location_assignment PIN_AD1 -to bot_mem_dq[68]
+set_location_assignment PIN_AE3 -to bot_mem_dq[69]
+set_location_assignment PIN_AG2 -to bot_mem_dq[70]
+set_location_assignment PIN_AF3 -to bot_mem_dq[71]
+set_location_assignment PIN_AA2 -to bot_mem_dqs[0]
+set_location_assignment PIN_AE5 -to bot_mem_dqs[1]
+set_location_assignment PIN_AA7 -to bot_mem_dqs[2]
+set_location_assignment PIN_AF8 -to bot_mem_dqs[3]
+set_location_assignment PIN_AG9 -to bot_mem_dqs[4]
+set_location_assignment PIN_AN7 -to bot_mem_dqs[5]
+set_location_assignment PIN_AR5 -to bot_mem_dqs[6]
+set_location_assignment PIN_AW6 -to bot_mem_dqs[7]
+set_location_assignment PIN_AH1 -to bot_mem_dqs[8]
+set_location_assignment PIN_AA3 -to bot_mem_dqs_n[0]
+set_location_assignment PIN_AE6 -to bot_mem_dqs_n[1]
+set_location_assignment PIN_AA8 -to bot_mem_dqs_n[2]
+set_location_assignment PIN_AE8 -to bot_mem_dqs_n[3]
+set_location_assignment PIN_AG10 -to bot_mem_dqs_n[4]
+set_location_assignment PIN_AM7 -to bot_mem_dqs_n[5]
+set_location_assignment PIN_AP6 -to bot_mem_dqs_n[6]
+set_location_assignment PIN_AV6 -to bot_mem_dqs_n[7]
+set_location_assignment PIN_AG1 -to bot_mem_dqs_n[8]
+set_location_assignment PIN_AB4 -to bot_mem_dbi_n[0]
+set_location_assignment PIN_AB6 -to bot_mem_dbi_n[1]
+set_location_assignment PIN_AA10 -to bot_mem_dbi_n[2]
+set_location_assignment PIN_AF10 -to bot_mem_dbi_n[3]
+set_location_assignment PIN_AH8 -to bot_mem_dbi_n[4]
+set_location_assignment PIN_AL9 -to bot_mem_dbi_n[5]
+set_location_assignment PIN_AP3 -to bot_mem_dbi_n[6]
+set_location_assignment PIN_AU6 -to bot_mem_dbi_n[7]
+set_location_assignment PIN_AC2 -to bot_mem_dbi_n[8]
+set_location_assignment PIN_AH7 -to bot_oct_rzqin
+
+# Leave everything else alone
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
+set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-STATED"
+
+# --------------------------------------------------------------------------
+# Partial reconfiguration (Arria 10, internal host = pr_ip)
+#
+# Reserved core-only region between I/O column 2 (bank 2A at X=78) and
+# I/O column 3 (X=142, DDR4 banks 3B-3G over Y~26-181), leaving room on the
+# right for the EMIF core-side logic. Coordinates are a lab choice, not a
+# board fact (probe fit of 2026-11-18, see README).
+# --------------------------------------------------------------------------
+set_global_assignment -name REVISION_TYPE PR_IMPL
+set_global_assignment -name GENERATE_PR_RBF_FILE ON
+set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION OFF
+
+set_instance_assignment -name PARTITION pr_partition -to u_persona
+set_instance_assignment -name PARTIAL_RECONFIGURATION_PARTITION ON -to u_persona
+set_instance_assignment -name PLACE_REGION "X96 Y72 X127 Y151" -to u_persona
+set_instance_assignment -name ROUTE_REGION "X94 Y70 X129 Y153" -to u_persona
+set_instance_assignment -name RESERVE_PLACE_REGION ON -to u_persona
+set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to u_persona
+set_instance_assignment -name REGION_NAME pr_region -to u_persona
+
+# Import the static region from the base revision and rebind the persona.
+set_instance_assignment -name QDB_FILE_PARTITION output_files/shell_static.qdb -to |
+set_instance_assignment -name ENTITY_REBINDING persona_prbs -to u_persona
+
+# Platform Designer IP (generated by make_qsys.tcl)
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_clk_100.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pcie.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_temp.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pll_pr.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pr_ip.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_shell.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_counter.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_id.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_temp.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_persona.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_scratch_ram.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_regs_br.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_persona_br.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_flash_br.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_flash.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_emif_top.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_emif_bot.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_clk_50_br.ip
