@@ -86,3 +86,9 @@ projects/05_ddr4/sim/work/
 projects/05_ddr4/sim/transcript
 projects/05_ddr4/sim/*.log
 projects/05_ddr4/sim/*.vstf
+projects/06_i2c_telemetry/i2c_sys/
+projects/06_i2c_telemetry/ip/i2c_sys/*/
+projects/06_i2c_telemetry/*.log
+projects/06_i2c_telemetry/sim/work/
+projects/06_i2c_telemetry/sim/transcript
+projects/06_i2c_telemetry/sim/*.log
