@@ -33,20 +33,19 @@ the board on eBay in any country. English keeps one canonical version.
 
 ## 3. Hard rules
 
-1. **Never commit licence files, cracked binaries, key generators or patched vendor
-   executables.** Toolchain problems are solved with proper licence.
-2. **Never write the configuration flash without a backup and explicit user confirmation.**
+
+1. **Never write the configuration flash without a backup and explicit user confirmation.**
    Volatile `.sof` loads only, by default. A flash write is destructive and irreversible on
    this card because the factory Microsoft image is not published.
-3. **Mark what is verified.** Every hardware claim carries a status
+2. **Mark what is verified.** Every hardware claim carries a status
    (`verified` / `reported` / `unknown`) and, for verified claims, the date and the board it
    was verified on.
-4. **Do not invent pin numbers, addresses or part numbers.** If a value is a guess, write
+3. **Do not invent pin numbers, addresses or part numbers.** If a value is a guess, write
    `unknown` or `hypothesis` and explain what would verify it.
-5. **Keep third-party material attributed.** Vendor documents kept under `hardware/`
+4. **Keep third-party material attributed.** Vendor documents kept under `hardware/`
    name their source in the file README or NOTICE; other people's projects are linked
    from `docs/reference/links.md`, not copied into this repository.
-6. **One change, one purpose.** Do not mix documentation fixes with RTL changes in a single
+5. **One change, one purpose.** Do not mix documentation fixes with RTL changes in a single
    commit.
 
 ## 4. Repository layout
