@@ -19,8 +19,8 @@ PCIe link stay up.
 | PCIe | #1, Gen3 x8, Avalon-MM with DMA HIP (DMA unused), 64-bit prefetchable BAR0, 64 KB, `0x1172` / `0xE003` (same driver as projects 02–04) |
 | DDR4 | 2 × EMIF, DDR4-2133 (1066.667 MHz), 72 bit, ECC off, hard controller, quarter rate (user clock 266.667 MHz, 576-bit words) |
 | Flash | ASMI Parallel II, **read only** (write strobe tied low in RTL) |
-| Configuration | volatile `.sof` over JTAG; personas over PCIe; the configuration flash is not written |
-| Status | **verified on hardware** (2026-11-19): Gen3 x8, both DDR4 channels calibrated, full 2304 MiB per channel passes walking one and PRBS-31, persona swaps over PCIe. Needs airflow — see [Thermal warning](#thermal-warning) |
+| Configuration | volatile `.sof` over JTAG; personas over PCIe; the configuration flash is not written by this design. Since 2026-11-19 the lab card's flash holds this shell, so it boots from flash at power-up |
+| Status | **verified on hardware** (2026-11-19): Gen3 x8, both DDR4 channels calibrated, full 2304 MiB per channel passes walking one and PRBS-31, persona swaps over PCIe. The lab card now boots this shell from its configuration flash. Needs airflow — see [Thermal warning](#thermal-warning) |
 
 ## Register map (BAR0)
 
@@ -227,6 +227,10 @@ $t = "..\..\host\build\fpga1768.exe"
 & $t load-pr output_files\shell_prbs.pr_partition.rbf
 & $t ddr test --seed 0x1234
 ```
+
+> On the lab card the JTAG load is no longer needed after a power cycle: the flash holds
+> this shell since 2026-11-19, so the card boots `1172:E003` by itself. Load `shell.sof`
+> only when you have changed the design, or to recover after a failed flash write.
 
 Flash backup (read only):
 

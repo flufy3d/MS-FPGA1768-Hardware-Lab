@@ -83,7 +83,8 @@ Start reading here:
 
 | Item | State |
 |------|-------|
-| PCIe enumeration | Card is visible as `1414:B204` (subsystem `0400:1414`, class `0xFF0000`), link trained at **Gen3 x8**, no driver bound. This is a pre-programmed bitstream that shipped in the config flash. |
+| PCIe enumeration | **As received**, the card presented `1414:B204` (subsystem `0400:1414`, class `0xFF0000`) at Gen3 x8 with no driver bound: a pre-programmed Microsoft bitstream in the config flash. **Since 2026-11-19** this card's flash holds `projects/05_shell`, so a power cycle boots it as `1172:E003` with BAR0 `0x383FFFE00000` and no JTAG load. The Microsoft image is gone from this card. |
+| Configuration flash | N25Q00AA, 1 Gb, ASx4. Read twice on 2026-11-19 (128 MB, identical SHA-256 `4C727C31…9326C`), then **written** with `shell.jic` and verified by a cold boot — see the [lab log](lab-log/2026-11-19-flash-program.md). A raw dump cannot be turned back into a programming file with Quartus, so a restore would need an external SPI programmer. |
 | On-board USB programmer | FT232H enumerated as `0403:6014`, D2HD driver (`FTDIBUS`) loaded. Quartus needs the plugin DLL — see [docs/toolchain/onboard-usb-blaster.md](docs/toolchain/onboard-usb-blaster.md). |
 | JTAG | Works after a full **AC power cycle**: `jtagconfig` reports `02E060DD  10AT115S(1|2)`. The FT232H latches after a crashed programmer run and then needs VBUS removed (not just a reboot). |
 | Hello world | **Success (2026-11-17).** `projects/01_hello_world` compiled (23 ALMs, timing met) and was loaded over JTAG in 8m58s. The LEDs show a 1 Hz heartbeat and a binary seconds counter. See the [lab log](lab-log/). |

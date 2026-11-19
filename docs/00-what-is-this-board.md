@@ -92,6 +92,12 @@ Interpretation:
 > "known-good" image on this particular card. Back it up over JTAG before writing flash
 > (see [toolchain/build-and-program.md](toolchain/build-and-program.md#backing-up-the-configuration-flash)).
 
+> **2026-11-19, lab card.** This card's configuration flash now holds
+> `projects/05_shell`, not the Microsoft image, so the `1414:B204` observations above
+> describe the state before that date. The raw backup is kept as data only; Quartus cannot
+> turn it back into a programming file. See
+> [lab-log/2026-11-19-flash-program.md](../lab-log/2026-11-19-flash-program.md).
+
 ## Open questions
 
 - Exact Microsoft part number ↔ build revision mapping (labels are often missing).

@@ -110,6 +110,24 @@ the serial flash loader. Until one of those exists, treat a flash write as irrev
 the backup protects against losing the data, not against losing the card's ability to boot
 the Microsoft image.
 
+### Verified write (2026-11-19, lab card)
+
+The write itself was then performed and validated end to end — see
+[lab-log/2026-11-19-flash-program.md](../../lab-log/2026-11-19-flash-program.md):
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `quartus_pgm -m jtag -o "p;firmware\prebuilt\Catapult_v3_sfl.sof"` | 08:08, `Configuration succeeded` |
+| 2 | `quartus_pgm -m jtag -o "p;...\shell.jic"` | 07:49, silicon ID `0x21`, erase + program, 0 errors |
+| 3 | full AC power cycle, no JTAG | Windows enumerated `1172:E003` by itself |
+
+So the sequence above works on this board with one extra detail: the `.jic` write also
+accepts the SFL loaded beforehand, and the resulting flash boots the shell at power-up with
+both DDR4 channels calibrated. Note that the `.jic` is a container, not a raw image — a
+`flash-dump` afterwards does not reproduce the last 128 MB of the `.jic` byte for byte,
+even though the design boots correctly.
+
+
 
 ### Backing up the configuration flash
 
