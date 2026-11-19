@@ -8,7 +8,7 @@
 // unmapped offsets are ignored; unmapped reads return 0.
 //
 //   0x00 SHELL_ID  RO  0x49323036 ("I206")
-//   0x04 CAPS      RO  0x00000002 (bit1 I2C)
+//   0x04 CAPS      RO  0x00000006 (bit1 I2C, bit2 PR)
 //   0x08 CAPS2     RO  0 (reserved)
 //   0x30 COUNTER   RO  free-running clk counter
 //   0x40 ID        RO  0x50434945 ("PCIE", checked by the Windows test driver)
@@ -29,12 +29,19 @@
 //                      [19] bus 2 SDA (live, synchronised line levels)
 //   0x94 SCL_DIV   RW  [15:0] quarter SCL period in clk cycles (reset 250 =
 //                      100 kHz; values below 25 act as 25)
+//   0xA0 PERSONA   RO  [15:0] persona ID (0 while frozen / in reset)
+//                      [16] PR freeze [17] persona reset [18] PR PLL locked
+//                      (word built in the top level, same fields as project 04)
+//   0xA4 A         RW  persona operand A
+//   0xA8 B         RW  persona operand B
+//   0xAC SUM       RO  persona result (A + B or A - B; 0 while in reset)
+//   (0x100..0x10F is the PR controller, outside this block)
 //
 // CTRL writes with start = 1 while busy are ignored.
 // --------------------------------------------------------------------------
 module bar0_regs #(
     parameter [31:0] SHELL_ID = 32'h49323036,
-    parameter [31:0] CAPS     = 32'h00000002,
+    parameter [31:0] CAPS     = 32'h00000006,
     parameter [31:0] CAPS2    = 32'h00000000,
     parameter [31:0] ID       = 32'h50434945
 ) (
@@ -52,6 +59,12 @@ module bar0_regs #(
     // Values built elsewhere
     input  wire [31:0] counter,
     input  wire [31:0] temp,
+
+    // Persona (PR region) ABI
+    input  wire [31:0] persona,       // PERSONA word
+    output reg  [31:0] pr_a,
+    output reg  [31:0] pr_b,
+    input  wire [31:0] pr_sum,
 
     // I2C master
     output reg          i2c_start,
@@ -105,6 +118,7 @@ module bar0_regs #(
             i2c_addr <= 7'd0; i2c_reg <= 8'd0;
             i2c_page_en <= 1'b0; i2c_page <= 8'd0;
             i2c_len <= 6'd0; i2c_div <= 16'd250;
+            pr_a <= 32'd0; pr_b <= 32'd0;
         end else begin
             // ---- host writes ----
             if (write) begin
@@ -126,6 +140,8 @@ module bar0_regs #(
                 6'h1B: if (!i2c_busy) i2c_reg <= writedata[7:0];                // 0x6C
                 6'h1C: if (!i2c_busy) i2c_len <= writedata[5:0];                // 0x70
                 6'h25: i2c_div <= writedata[15:0];                              // 0x94
+                6'h29: pr_a <= writedata;                                       // 0xA4
+                6'h2A: pr_b <= writedata;                                       // 0xA8
                 default: ;
                 endcase
                 if (is_data && !i2c_busy)
@@ -158,6 +174,10 @@ module bar0_regs #(
             6'h24: readdata <= {12'd0, i2c_lines, i2c_bytes, 3'd0, i2c_aborted,
                                 i2c_timeout, i2c_done, i2c_ack_error, i2c_busy};
             6'h25: readdata <= {16'd0, i2c_div};
+            6'h28: readdata <= persona;
+            6'h29: readdata <= pr_a;
+            6'h2A: readdata <= pr_b;
+            6'h2B: readdata <= pr_sum;
             default:
                 if (is_data)
                     readdata <= {data[dword*4 + 3], data[dword*4 + 2],

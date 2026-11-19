@@ -6,13 +6,19 @@
 //
 // Copied from 03_pcie_gen3 (PCIe hard IP, 64-bit BAR0 64 KB, die temperature
 // sensor). The A/B/SUM PIO bank is replaced by bar0_regs.sv behind one
-// Avalon-MM bridge at BAR0 + 0x0000:
+// Avalon-MM bridge at BAR0 + 0x0000; the PR controller and the persona
+// region follow 04_pcie_hot_update:
 //
-//   0x00 SHELL_ID 0x49323036 ("I206")    0x04 CAPS 0x00000002 (I2C)
+//   0x00 SHELL_ID 0x49323036 ("I206")    0x04 CAPS 0x00000006 (I2C, PR)
 //   0x08 CAPS2 0                         0x30 COUNTER
 //   0x40 ID 0x50434945                   0x50 TEMP
 //   0x60..0x94 I2C master (CTRL, ADDR, PAGE, REG, LEN, DATA, STATUS, SCL_DIV)
+//   0xA0 PERSONA, 0xA4 A, 0xA8 B, 0xAC SUM   persona ABI
+//   0x100..0x10F PR controller (alt_pr): DATA, CSR, VERSION, PR ID
 //   0x8000..0xFFFF 32 KB scratch RAM (sizes BAR0 to 64 KB)
+//
+// Reconfigurable region: the instance u_persona (persona_add in revision
+// i2c_telemetry, persona_sub in revision i2c_telemetry_sub).
 //
 // Full map: bar0_regs.sv and README.md.
 //
@@ -84,6 +90,52 @@ module i2c_telemetry (
     wire [31:0] temp_word = {ts_count, ts_eoc_sync[2], 1'b0, ts_raw, 6'd0, ts_code};
 
     // ----------------------------------------------------------------------
+    // Partial reconfiguration (as in 04_pcie_hot_update)
+    // ----------------------------------------------------------------------
+    wire pr_freeze;       // from the PR controller (50 MHz, PLL-related to clk_100)
+    wire pll_pr_locked;   // asynchronous
+
+    (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [1:0] pll_locked_sync = 2'd0;
+    always_ff @(posedge clk_100) pll_locked_sync <= {pll_locked_sync[0], pll_pr_locked};
+
+    // Power-up reset for the PR controller clock PLL: high for the first 256
+    // clk_100 cycles after configuration (Quartus rejects a constant reset).
+    reg [8:0] pll_rst_cnt = 9'd0;
+    always_ff @(posedge clk_100) if (!pll_rst_cnt[8]) pll_rst_cnt <= pll_rst_cnt + 9'd1;
+    wire pll_pr_reset = ~pll_rst_cnt[8];
+
+    // The persona is held in reset while freeze is high and for 511 clk_100
+    // cycles (5.11 us) after it falls, and after configuration. Arria 10 PR
+    // region registers do not start in a known state after PR.
+    reg  [8:0]  persona_hold = 9'h1FF;
+    reg         persona_rst  = 1'b1;
+    always_ff @(posedge clk_100) begin
+        if (pr_freeze)
+            persona_hold <= 9'h1FF;
+        else if (persona_hold != 9'd0)
+            persona_hold <= persona_hold - 9'd1;
+        persona_rst <= pr_freeze | (persona_hold != 9'd0);
+    end
+
+    wire [31:0] pr_a, pr_b, persona_sum;
+    wire [15:0] persona_id;
+
+    // Reconfigurable partition (pr_partition). Entity persona_add in the base
+    // revision; rebound to persona_sub in i2c_telemetry_sub.qsf.
+    persona_add u_persona (
+        .clk        (clk_100),
+        .rst        (persona_rst),
+        .a          (pr_a),
+        .b          (pr_b),
+        .sum        (persona_sum),
+        .persona_id (persona_id)
+    );
+
+    wire [31:0] pr_sum_word     = persona_rst ? 32'd0 : persona_sum;
+    wire [31:0] pr_persona_word = {13'd0, pll_locked_sync[1], persona_rst, pr_freeze,
+                                   persona_rst ? 16'd0 : persona_id};
+
+    // ----------------------------------------------------------------------
     // I2C pads: open drain, inputs through two-stage synchronisers
     // ----------------------------------------------------------------------
     wire scl1_oe, sda1_oe, scl2_oe, sda2_oe;
@@ -129,6 +181,10 @@ module i2c_telemetry (
         .readdatavalid (av_rvalid),
         .counter       (counter),
         .temp          (temp_word),
+        .persona       (pr_persona_word),
+        .pr_a          (pr_a),
+        .pr_b          (pr_b),
+        .pr_sum        (pr_sum_word),
         .i2c_start     (i2c_start),
         .i2c_abort     (i2c_abort),
         .i2c_bus       (i2c_bus),
@@ -188,7 +244,8 @@ module i2c_telemetry (
     );
 
     // ----------------------------------------------------------------------
-    // Qsys system: PCIe HIP, register bridge, scratch RAM, temperature sensor
+    // Qsys system: PCIe HIP, register bridge, PR controller + PLL, scratch
+    // RAM, temperature sensor
     // ----------------------------------------------------------------------
     i2c_sys u0 (
         .clk_100_clk              (clk_100),
@@ -230,7 +287,11 @@ module i2c_telemetry (
         .temp_corectl_corectl     (1'b1),
         .temp_reset_reset         (ts_reset),
         .temp_tempout_tempout     (ts_tempout),
-        .temp_eoc_eoc             (ts_eoc)
+        .temp_eoc_eoc             (ts_eoc),
+
+        .pr_freeze_freeze         (pr_freeze),
+        .pll_pr_locked_export     (pll_pr_locked),
+        .pll_pr_reset_reset       (pll_pr_reset)
     );
 
 endmodule

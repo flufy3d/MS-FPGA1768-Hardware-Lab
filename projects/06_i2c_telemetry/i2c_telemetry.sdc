@@ -26,3 +26,8 @@ set_false_path -to [get_registers {ts_eoc_sync[0]}]
 # pull-ups, not by FPGA I/O timing.
 set_false_path -from [get_ports {i2c1_scl i2c1_sda i2c2_scl i2c2_sda}]
 set_false_path -to   [get_ports {i2c1_scl i2c1_sda i2c2_scl i2c2_sda}]
+
+# The PR controller clock PLL's locked output is asynchronous; it is read
+# through a two-stage synchroniser in i2c_telemetry.sv. The PLL and PR IPs
+# add their own SDC for the 50 MHz clock.
+set_false_path -to [get_registers {pll_locked_sync[0]}]

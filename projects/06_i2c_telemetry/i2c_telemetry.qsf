@@ -1,9 +1,14 @@
 # -------------------------------------------------------------------------- #
 # i2c_telemetry.qsf — Microsoft FPGA 1768 / Catapult v3 "Longs Peak"
 #
-# PCIe #1 endpoint (x8 Gen3, 64-bit BAR0 64 KB, 1172:E003) with a BAR0
-# register block: SHELL_ID / CAPS, counter, ID, die temperature and an I2C
-# master for board buses 1 and 2 (open drain, 1.8 V). No LEDs are used.
+# PR BASE revision. PCIe #1 endpoint (x8 Gen3, 64-bit BAR0 64 KB, 1172:E003)
+# with a BAR0 register block: SHELL_ID / CAPS, counter, ID, die temperature,
+# an I2C master for board buses 1 and 2 (open drain, 1.8 V), the PR
+# controller and a reconfigurable region (u_persona). The base revision
+# implements persona_add (SUM = A + B). No LEDs are used.
+#
+# The implementation revision i2c_telemetry_sub.qsf repeats the device, pin
+# and PR region settings of this file. Keep the two in sync.
 #
 # Volatile JTAG configuration only. The configuration flash is not touched.
 # -------------------------------------------------------------------------- #
@@ -23,6 +28,7 @@ set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 set_global_assignment -name SYSTEMVERILOG_FILE i2c_telemetry.sv
 set_global_assignment -name SYSTEMVERILOG_FILE bar0_regs.sv
 set_global_assignment -name SYSTEMVERILOG_FILE i2c_master.sv
+set_global_assignment -name SYSTEMVERILOG_FILE persona_add.sv
 set_global_assignment -name SDC_FILE i2c_telemetry.sdc
 
 # --------------------------------------------------------------------------
@@ -43,6 +49,11 @@ set_global_assignment -name ENABLE_OCT_DONE OFF
 # 100 MHz board oscillator U59 / CLKUSR (AP20)
 set_location_assignment PIN_AP20 -to clk_100
 set_instance_assignment -name IO_STANDARD "1.8 V" -to clk_100
+
+# The 50 MHz PR controller PLL takes clk_100 from the global clock network:
+# AP20 is the CLKUSR pin, not an IOPLL reference clock pin (fitter error
+# 18805 without this line, see 04_pcie_hot_update/README.md).
+set_instance_assignment -name GLOBAL_SIGNAL GLOBAL_CLOCK -to clk_100
 
 # PCIe #1 reference clock, 100 MHz LVDS from U57/U56 (AN29/AN28)
 set_location_assignment PIN_AN29 -to clk_pcie1
@@ -136,6 +147,22 @@ set_instance_assignment -name SLEW_RATE 0 -to i2c1_scl
 set_instance_assignment -name SLEW_RATE 0 -to i2c2_sda
 set_instance_assignment -name SLEW_RATE 0 -to i2c2_scl
 
+# --------------------------------------------------------------------------
+# Partial reconfiguration (Arria 10, internal host = pr_ip in the Qsys system)
+# Same region as 04_pcie_hot_update: a reserved, core-only LogicLock region
+# away from the PCIe hard IP (a lab choice, not a board fact).
+# Plain PR data (no compression, no encryption) to match pr_ip CDRATIO = 1.
+# --------------------------------------------------------------------------
+set_global_assignment -name REVISION_TYPE PR_BASE
+set_global_assignment -name GENERATE_PR_RBF_FILE ON
+set_instance_assignment -name PARTITION pr_partition -to u_persona
+set_instance_assignment -name PARTIAL_RECONFIGURATION_PARTITION ON -to u_persona
+set_instance_assignment -name PLACE_REGION "X120 Y120 X139 Y139" -to u_persona
+set_instance_assignment -name ROUTE_REGION "X118 Y118 X141 Y141" -to u_persona
+set_instance_assignment -name RESERVE_PLACE_REGION ON -to u_persona
+set_instance_assignment -name CORE_ONLY_PLACE_REGION ON -to u_persona
+set_instance_assignment -name REGION_NAME pr_region -to u_persona
+
 # Leave everything else alone
 set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
 set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-STATED"
@@ -145,3 +172,5 @@ set_global_assignment -name IP_FILE ip/i2c_sys/i2c_sys_temp.ip
 set_global_assignment -name IP_FILE ip/i2c_sys/i2c_sys_regs_br.ip
 set_global_assignment -name IP_FILE ip/i2c_sys/i2c_sys_scratch_ram.ip
 set_global_assignment -name QSYS_FILE i2c_sys.qsys
+set_global_assignment -name IP_FILE ip/i2c_sys/i2c_sys_pll_pr.ip
+set_global_assignment -name IP_FILE ip/i2c_sys/i2c_sys_pr_ip.ip

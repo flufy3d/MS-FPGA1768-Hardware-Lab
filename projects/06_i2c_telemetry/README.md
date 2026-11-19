@@ -4,19 +4,23 @@ Reads the board's management devices (temperature sensor, hot-swap controller, r
 EEPROMs) from the host through an I2C master in the FPGA. Copied from
 [03_pcie_gen3](../03_pcie_gen3/) (the *minimal* template): same PCIe hard IP, 64-bit BAR0
 and die temperature register; the `A + B` PIO bank is replaced by one register block that
-implements the host contract (SHELL_ID / CAPS) and the I2C master.
+implements the host contract (SHELL_ID / CAPS) and the I2C master. The partial
+reconfiguration controller and the `A + B` / `A − B` personas of
+[04_pcie_hot_update](../04_pcie_hot_update/) are added on top, so the host can replace
+the persona over PCIe with `fpga1768 load-pr`.
 
 | Item | Value |
 |------|-------|
 | Top-level entity | `i2c_telemetry` |
+| Revisions | `i2c_telemetry` (PR base, persona 1 `A + B`) and `i2c_telemetry_sub` (PR implementation, persona 2 `A − B`) |
 | Device | `10AXF40AA` (Arria 10) |
 | PCIe | #1, Gen3 (8.0 GT/s) x8, Avalon-MM with DMA (DMA unused), 256-bit |
 | BAR0 | 64-bit prefetchable memory, 64 KB; BAR1–BAR5 disabled |
 | Vendor / device ID | `0x1172` / `0xE003` (same Windows test driver as projects 02–05) |
-| SHELL_ID / CAPS | `0x49323036` ("I206") / `0x00000002` (I2C) |
+| SHELL_ID / CAPS | `0x49323036` ("I206") / `0x00000006` (I2C, PR) |
 | Host profile | [host/profiles/06_i2c_telemetry.ini](../../host/profiles/06_i2c_telemetry.ini) |
-| PR | **not included yet** (no PR controller, no persona); see "Open items" |
-| Configuration | volatile `.sof` over JTAG, config flash untouched |
+| PR | PR controller at BAR0 + `0x100`, persona region `u_persona` (as in project 04) |
+| Configuration | base image: volatile `.sof` over JTAG; personas: PR over PCIe. Config flash untouched |
 | Status | **built and simulated, not tested on hardware** (2026-11-19) |
 
 ## Purpose
@@ -34,7 +38,7 @@ All registers are 32-bit, in `bar0_regs.sv`, clocked by `clk_100`.
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
 | `0x00` | `SHELL_ID` | RO | `0x49323036` ("I206") — host contract |
-| `0x04` | `CAPS` | RO | `0x00000002`: bit 1 = I2C (bit 0 DDR4, bit 2 PR, bit 3 flash window absent) |
+| `0x04` | `CAPS` | RO | `0x00000006`: bit 1 = I2C, bit 2 = PR (bit 0 DDR4 and bit 3 flash window absent) |
 | `0x08` | `CAPS2` | RO | `0` (reserved) |
 | `0x30` | `COUNTER` | RO | free-running 100 MHz counter |
 | `0x40` | `ID` | RO | `0x50434945`; the Windows test driver allows writes only when this matches |
@@ -47,6 +51,14 @@ All registers are 32-bit, in `bar0_regs.sv`, clocked by `clk_100`.
 | `0x74`–`0x8F` | `DATA` | RW | 28 bytes, little endian (byte *i* at `0x74 + i`); write data before a write, read data after a read |
 | `0x90` | `STATUS` | RO | `[0]` busy `[1]` ack_error (NACK) `[2]` done `[3]` timeout `[4]` aborted `[15:8]` data bytes transferred `[16]` bus 1 SCL `[17]` bus 1 SDA `[18]` bus 2 SCL `[19]` bus 2 SDA (live line levels) |
 | `0x94` | `SCL_DIV` | RW | `[15:0]` quarter SCL period in `clk_100` cycles; reset `250` = 100 kHz; values below 25 act as 25 (1 MHz) |
+| `0xA0` | `PERSONA` | RO | `[15:0]` persona ID (`0x0001` add, `0x0002` sub, `0` while frozen / in reset); `[16]` PR freeze; `[17]` persona reset; `[18]` PR controller PLL locked |
+| `0xA4` | `A` | RW | persona operand A |
+| `0xA8` | `B` | RW | persona operand B |
+| `0xAC` | `SUM` | RO | persona result: `A + B` (persona 1) or `A − B` (persona 2); `0` while in reset |
+| `0x100` | `PR_DATA` | WO | PR controller data port, one `.rbf` word per write |
+| `0x104` | `PR_CSR` | RW | bit 0 start; `[4:2]` status (0 idle, 1 PR error, 2 CRC error, 3 incompatible bitstream, 4 in progress, 5 success) |
+| `0x108` | `PR_VERSION` | RO | `0xAA500003` (alt_pr, Quartus Prime Pro 25.1) |
+| `0x10C` | `PR_ID` | RO | PR bitstream ID expected by the compatibility check |
 | `0x8000`–`0xFFFF` | scratch RAM | RW | 32 KB, sizes BAR0 to 64 KB |
 
 Writes to `ADDR`, `PAGE`, `REG`, `LEN`, `DATA` and a start in `CTRL` are ignored while
@@ -78,6 +90,25 @@ the other bus is never driven.
   master clocks one more byte with SDA released and NACKs it (bus clear), then sends STOP.
 - Pads are open drain (`pin = oe ? 0 : Z`), inputs go through two-stage synchronisers. No
   internal pull-up is enabled; the board's pull-ups set the high level.
+
+## Partial reconfiguration
+
+Copied from [04_pcie_hot_update](../04_pcie_hot_update/) without functional changes; see
+its README for the reasoning.
+
+- `pr_ip` (alt_pr): internal host, Avalon-MM slave at `0x100`, 32-bit plain data
+  (`CDRATIO 1`), bitstream compatibility check on, JTAG debug off. Clocked at 50 MHz by
+  `pll_pr` (the half-cycle PR data path fails at 100 MHz, project 04).
+- While `freeze` is high and for 511 `clk_100` cycles after it falls, `u_persona` is held in
+  reset and `PERSONA[15:0]` and `SUM` read `0`.
+- PR region: `u_persona`, partition `pr_partition`, reserved core-only LogicLock region
+  `X120 Y120`–`X139 Y139`, route region `X118 Y118`–`X141 Y141` (lab choice).
+- The persona ABI (`PERSONA`, `A`, `B`, `SUM`) sits at `0xA0`–`0xAC` instead of project
+  04's `0x00`–`0x60`, because `0x00`–`0x08` belong to the host contract and `0x60` to the
+  I2C master. The host tool reads the offsets from the profile, so `persona` and `load-pr`
+  work unchanged.
+- The I2C master is in the static region; a PR load does not interrupt it.
+- A persona `.rbf` is valid only with the base `.sof` of the same `build_pr.ps1` run.
 
 ## Pins used
 
@@ -121,8 +152,18 @@ global registers (datasheet SNLS513C, "Programming"), readable without selecting
 
 ```powershell
 . ..\..\scripts\env.ps1
-..\..\scripts\build.ps1 -Project i2c_telemetry.qpf
+.\build_pr.ps1            # base compile, export static region, implementation compile
 ```
+
+| File (`output_files/`) | Use |
+|------------------------|-----|
+| `i2c_telemetry.sof` | full base image (persona 1), JTAG |
+| `i2c_telemetry.pr_partition.rbf` | PR bitstream, persona 1 (`A + B`) |
+| `i2c_telemetry_sub.pr_partition.rbf` | PR bitstream, persona 2 (`A − B`) |
+
+`qsys-script --quartus-project` adds new `IP_FILE` lines to the current revision only; keep
+`i2c_telemetry.qsf` and `i2c_telemetry_sub.qsf` identical apart from the PR block and the
+persona source (`diff` them after regenerating).
 
 Regenerate the Platform Designer system (only after editing `make_qsys.tcl`):
 
@@ -147,7 +188,10 @@ by 3 µs on bus 2. Covered: identity registers; 100 kHz read; command byte + Sr 
 read with clock stretching; NACK on a missing address (lines released); scan probe with no
 bytes written; paged read; 28-byte read; write path; SCL held low → timeout; abort while the
 target drives SDA low → bus clear → next transaction succeeds; bus isolation (the
-unselected bus is never driven). Questa 2024.1, 2026-11-19: `==== PASSED: 0 failure(s)`.
+unselected bus is never driven); the persona ABI registers (`PERSONA`, `A`, `B`, `SUM`
+with a stand-in persona). Questa 2024.1, 2026-11-19: `==== PASSED: 0 failure(s)`. The PR
+controller and the personas themselves are not simulated (same IP and RTL as project 04,
+verified there on hardware).
 
 ## Program and test
 
@@ -159,6 +203,10 @@ shutdown /r /t 0                                            # warm reboot: 64-bi
 host\build\fpga1768.exe probe
 host\build\fpga1768.exe i2c scan 2
 host\build\fpga1768.exe i2c sensors
+host\build\fpga1768.exe persona                                                     # A + B
+host\build\fpga1768.exe load-pr output_files\i2c_telemetry_sub.pr_partition.rbf    # A - B
+host\build\fpga1768.exe load-pr output_files\i2c_telemetry.pr_partition.rbf        # back to A + B
+host\build\fpga1768.exe i2c sensors                                                 # I2C unaffected by PR
 ```
 
 Volatile load only. **Do not write the configuration flash** (it holds the 05 image the
@@ -166,8 +214,11 @@ card boots from). A power cycle returns to that image.
 
 ## Expected observation
 
-- `probe`: `SHELL_ID 0x49323036`, `CAPS 0x00000002 (I2C)`, profile `06_i2c_telemetry`,
-  Gen3 x8, I2C idle with all four lines high.
+- `probe`: `SHELL_ID 0x49323036`, `CAPS 0x00000006 (I2C PR)`, profile `06_i2c_telemetry`,
+  Gen3 x8, PR version `0xAA500003`, persona `0x0001` with the PR PLL locked, I2C idle with
+  all four lines high.
+- `persona`: `SUM 0x23456789`; after `load-pr …sub…`: status 5, link and BAR0 unchanged,
+  persona `0x0002`, `SUM 0x01234567`.
 - `i2c scan 2`: at least `0x40`, `0x42`, `0x4C`, `0x51` (reported map; `0x1F`/`0x48` NIC,
   `0x27` GPIO expander and `0x6D` clock buffer may also answer).
 - `i2c scan 1`: `0x22` (retimer); `0x50` only with a QSFP module inserted.
@@ -193,7 +244,34 @@ lost power (project 05, 2026-11-19). Keep a fan on it; `fpga1768 temp 5` and
 
 ## Results
 
-Build of 2026-11-19 (I2C only, no PR), Quartus Prime Pro 25.1.0 Build 129 patch 0.36:
+PR build of 2026-11-19 (`build_pr.ps1`), Quartus Prime Pro 25.1.0 Build 129 patch 0.36:
+
+| Metric | `i2c_telemetry` (base) | `i2c_telemetry_sub` (implementation) |
+|--------|------------------------|--------------------------------------|
+| Compile | 0 errors | 0 errors, 11m04s |
+| Timing | **met** | **met** |
+| Worst slack (all corners) | setup +0.365 ns, hold +0.014 ns | setup +0.365 ns, hold +0.014 ns |
+| Logic | 6,954 ALMs (2 %), 13,378 registers | 9,445 ALMs (2 %) |
+
+Fmax (base, Slow 900mV 100C): `clk_100` 157.26 MHz, PR controller clock (50 MHz) 117.07
+MHz, PCIe core clock 275.1 MHz.
+
+| File | Bytes | SHA-256 |
+|------|-------|---------|
+| `i2c_telemetry.sof` | 36,798,658 | `E71229EB8889136ED42EFE3BB2603322712C78CFCA7A37C9E551DFFD56821F98` |
+| `i2c_telemetry.pr_partition.rbf` | 7,844,108 | `A2F016B875D7D6AE8C4F0DABF1D9F60C402423F29B7140C66249F24A70EF7A9F` |
+| `i2c_telemetry_sub.pr_partition.rbf` | 7,844,208 | `B01F2FB69EBC7B0C293D9066779C51871F3A6E4F7877310B81C2835D0CB26F86` |
+
+Critical warnings: `18326` (CLKUSR on `AP20`, as in every project) and `17951` / `18655`
+(40 unused transceiver channels; PCIe uses 8 of 48), the same set as projects 04 and 05.
+The first PR build failed with fitter error `18805` because the `.qsf` lacked
+`GLOBAL_SIGNAL GLOBAL_CLOCK` on `clk_100` (needed once an IOPLL takes it as reference;
+see project 04); added to both revisions.
+
+Not tested on hardware.
+
+First build of 2026-11-19 (I2C only, before PR was added; superseded by the PR build),
+Quartus Prime Pro 25.1.0 Build 129 patch 0.36:
 
 | Metric | Value |
 |--------|-------|
@@ -208,16 +286,14 @@ Build of 2026-11-19 (I2C only, no PR), Quartus Prime Pro 25.1.0 Build 129 patch 
 | Hardware | not tested |
 
 Critical warnings: CLKUSR on `AP20` (as in every project here, `clk_100` is a 100 MHz
-clock) and "Missing drive strength and slew rate" for the four I2C pins (the `.qsf` sets
-only location and I/O standard).
+clock) and "Missing drive strength and slew rate" for the four I2C pins (fixed afterwards:
+8 mA, slow slew).
 
 ## Open items
 
-- **PR not included yet.** The project rules ask every new project to carry a PR controller,
-  a persona ABI and a host `load-pr` path; this first version is the I2C bring-up only.
-  Adding them means copying the PR controller and persona region from `05_ddr4`, setting
-  CAPS bit 2 and adding the PR keys to the profile.
 - Bus 3 (NIC management) is not wired to the FPGA in this design.
+- The personas are the `A + B` / `A − B` demo of project 04; they do not use the I2C
+  master.
 
 ## Attribution
 

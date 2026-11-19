@@ -38,6 +38,7 @@ module tb_i2c;
     wire [7:0]  rbuf_data, i2c_bytes;
     wire        busy, done, ack_error, timeout, aborted;
     wire        scl1_oe, sda1_oe, scl2_oe, sda2_oe;
+    wire [31:0] pr_a, pr_b;           // persona operands (stand-in: SUM = A + B)
 
     reg [1:0] s_scl1, s_sda1, s_scl2, s_sda2;
     always @(posedge clk) begin
@@ -56,6 +57,7 @@ module tb_i2c;
         .address(av_addr), .read(av_read), .write(av_write),
         .writedata(av_wdata), .readdata(av_rdata), .readdatavalid(av_rvalid),
         .counter(32'h12345678), .temp(32'h0000_0200),
+        .persona(32'h0004_0001), .pr_a(pr_a), .pr_b(pr_b), .pr_sum(pr_a + pr_b),
         .i2c_start(i2c_start), .i2c_abort(i2c_abort), .i2c_bus(i2c_bus),
         .i2c_rw(i2c_rw), .i2c_no_reg(i2c_no_reg), .i2c_addr(i2c_addr),
         .i2c_reg(i2c_reg), .i2c_page_en(i2c_page_en), .i2c_page(i2c_page),
@@ -155,12 +157,19 @@ module tb_i2c;
 
         // Identity and fixed registers
         rd(R_SHELL_ID, v); check("SHELL_ID", v, 32'h49323036);
-        rd(R_CAPS, v);     check("CAPS", v, 32'h00000002);
+        rd(R_CAPS, v);     check("CAPS (I2C | PR)", v, 32'h00000006);
         rd(R_CAPS2, v);    check("CAPS2", v, 32'h00000000);
         rd(R_ID, v);       check("ID", v, 32'h50434945);
         rd(R_COUNTER, v);  check("COUNTER", v, 32'h12345678);
         rd(R_DIV, v);      check("SCL_DIV reset (100 kHz)", v, 32'd250);
         rd(R_STATUS, v);   check("STATUS idle, lines high", v, 32'h000F0000);
+
+        // Persona ABI (the persona itself is a stand-in here: SUM = A + B)
+        wr(8'hA4, 32'h12345678); wr(8'hA8, 32'h11111111);
+        rd(8'hA0, v);  check("PERSONA word", v, 32'h00040001);
+        rd(8'hA4, v);  check("A readback", v, 32'h12345678);
+        rd(8'hA8, v);  check("B readback", v, 32'h11111111);
+        rd(8'hAC, v);  check("SUM", v, 32'h23456789);
 
         // 1. 100 kHz: TMP411-like read, bus 2, reg 0x00, 1 byte
         setup(7'h4C, 8'h00, 6'd1);
