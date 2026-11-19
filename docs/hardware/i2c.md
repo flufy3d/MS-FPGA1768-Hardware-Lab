@@ -22,7 +22,7 @@ as long as 12 V is present).
 
 | Address | Device | Function | Status |
 |---------|--------|----------|--------|
-| `0x22` | U17 `DS250DF810` | 50G retimer | **verified** 2026-11-19: answers; vendor ID `0xFE` = `0x03` (TI); `0xEF`–`0xF3` = `0C 31 10 00 00`; page register `0xFF` and channel select `0xFC` read `0x00` |
+| `0x22` | U17 `DS250DF810` | 50G retimer | **verified** 2026-11-19: answers; vendor ID `0xFE` = `0x03` (TI); `0xEF`–`0xF3` = `0C 31 10 00 00` (`0xF0` differs from the datasheet's `0x32`); page register `0xFF` and channel select `0xFC` read `0x00`; channel status and CDR bypass work over this bus — see [ethernet-qsfp.md](ethernet-qsfp.md) |
 | `0x50` | QSFP cage | module EEPROM (SFF-8636) | reported; no answer without a module (none was inserted) |
 
 No other address in `0x08`–`0x77` answers (2026-11-19, no QSFP module).

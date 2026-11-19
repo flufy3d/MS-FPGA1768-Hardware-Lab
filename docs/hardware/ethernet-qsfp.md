@@ -1,6 +1,7 @@
 # 50G Ethernet: QSFP+ and the DS250DF810 retimer
 
-> Status: reported (topology verified on photos, link not tested in this lab)
+> Status: reported (topology verified on photos, link not tested in this lab); retimer
+> register access and CDR bypass verified 2026-11-19 (see "Retimer control from the FPGA")
 
 ## Topology
 
@@ -45,7 +46,34 @@ re-programmed or put into bypass:
 | | `0xE0` | CDR enabled (default) |
 
 The full programming guide is not public. The values above come from TI E2E forum posts and
-were used successfully by the community with an on-FPGA I2C master.
+were used successfully by the community with an on-FPGA I2C master (status: reported).
+
+**Correction (2026-11-19, from the datasheet SNLS513C, Table 12):** `0x1E[7:5]`
+(`PFD_SEL_DATA_MUX`: `000` raw data, `001` retimed, `100` pattern generator, `111` mute)
+only takes effect when channel register `0x09[5]` (`REG_BYPASS_PFD_OV`) is 1. Its default
+is 0, so writing `0x1E` alone leaves the CDR's own selection (retimed) in place. The
+`0x2F` rate codes are defined in the Programming Guide; the datasheet only names the field
+`RATE[2:0]` (`0x2F[6:4]`, default `101`).
+
+## Retimer control from the FPGA (verified 2026-11-19)
+
+[projects/06_i2c_telemetry](../../projects/06_i2c_telemetry/) and `fpga1768 retimer`
+([host/README.md](../../host/README.md)) on PCB `M1003380-005`, no QSFP module inserted;
+[lab log](../../lab-log/2026-11-19-retimer-bypass.md).
+
+| Item | Value on this card |
+|------|--------------------|
+| IDs `0xEF`–`0xF3` | `0C 31 10 00 00` (`0xF0` = `0x31`; the datasheet gives `0x32` — `unknown` why) |
+| Vendor `0xFE` | `0x03` (TI) |
+| Page `0xFF` / channel select `0xFC` at power-up | `0x00` / `0x00` |
+| `refclk_det` (shared `0x0B[6]`) | 1 on both quads (25 MHz reference present) |
+| EEPROM load (shared `0x05[4]`, `0x11`) | not attempted (`0x00`); SMBus slave mode assumed (`hypothesis`) |
+| Channels 0–7, `0x09` / `0x1E` / `0x2F` | `0x00` / `0xE9` / `0x54` = datasheet power-up defaults (no configuration loaded) |
+| Channels 0–7, signal detect | 0 (no module, FPGA QSFP transceivers not used by this design) |
+| CDR bypass | `0x1E[7:5]` ← `000`, then `0x09[5]` ← 1: read back as raw data on all eight channels; reverted to `0x00` / `0xE9` |
+
+The effect of bypass on a live data stream has not been observed yet: that needs a design
+that drives the QSFP transceivers and a module or loopback in the cage.
 
 Access path: I2C bus #1 (`SDA=L20`, `SCL=K20`), retimer address `0x22`. The same bus has
 the QSFP cage EEPROM at `0x50` and is available on header **J10** (pin 1 = SCL,
