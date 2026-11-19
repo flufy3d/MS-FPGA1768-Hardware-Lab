@@ -161,6 +161,7 @@ set_instance_assignment -name SLEW_RATE 0 -to i2c2_scl
 # --------------------------------------------------------------------------
 set_global_assignment -name REVISION_TYPE PR_IMPL
 set_global_assignment -name GENERATE_PR_RBF_FILE ON
+set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION OFF
 set_instance_assignment -name PARTITION pr_partition -to u_persona
 set_instance_assignment -name PARTIAL_RECONFIGURATION_PARTITION ON -to u_persona
 set_instance_assignment -name PLACE_REGION "X120 Y120 X139 Y139" -to u_persona

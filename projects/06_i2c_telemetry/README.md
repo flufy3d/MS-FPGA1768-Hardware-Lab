@@ -21,7 +21,7 @@ the persona over PCIe with `fpga1768 load-pr`.
 | Host profile | [host/profiles/06_i2c_telemetry.ini](../../host/profiles/06_i2c_telemetry.ini) |
 | PR | PR controller at BAR0 + `0x100`, persona region `u_persona` (as in project 04) |
 | Configuration | base image: volatile `.sof` over JTAG; personas: PR over PCIe. Config flash untouched |
-| Status | **built and simulated, not tested on hardware** (2026-11-19) |
+| Status | **verified on hardware 2026-11-19** (PCB `M1003380-005`): Gen3 x8, I2C buses 1 and 2 read, TMP411 / LM25066 telemetry, PR `A + B` → `A − B` → `A + B` over PCIe; see "Hardware test" |
 
 ## Purpose
 
@@ -219,8 +219,9 @@ card boots from). A power cycle returns to that image.
   all four lines high.
 - `persona`: `SUM 0x23456789`; after `load-pr …sub…`: status 5, link and BAR0 unchanged,
   persona `0x0002`, `SUM 0x01234567`.
-- `i2c scan 2`: at least `0x40`, `0x42`, `0x4C`, `0x51` (reported map; `0x1F`/`0x48` NIC,
-  `0x27` GPIO expander and `0x6D` clock buffer may also answer).
+- `i2c scan 2`: at least `0x40`, `0x42`, `0x4C`, `0x51`. On the lab card the target at
+  `0x1F` (NIC, reported) holds SCL low for more than 10 ms and the scan stops there with
+  `TO`; scan `i2c scan 2 20 77` to skip it (see "Hardware test").
 - `i2c scan 1`: `0x22` (retimer); `0x50` only with a QSFP module inserted.
 - TMP411 local temperature plausible (below the FPGA die temperature, above ambient).
 - LM25066 `READ_VIN` between 11 and 13 V.
@@ -233,7 +234,8 @@ card boots from). A power cycle returns to that image.
 | `probe` finds the `legacy` profile or another SHELL_ID | the `.sof` did not load, or no warm reboot after loading |
 | `STATUS` line bits read 0 for a bus | no pull-up on the FPGA side, or a target holds the line; do not scan, measure first |
 | every address NACKs | wrong bus, level shifter disabled, or pins wrong (status `reported` in the CSV) |
-| `timeout` | a target stretches SCL > 10 ms or holds it low; try `i2c speed 50` then re-check lines |
+| `timeout` | a target stretches SCL > 10 ms or holds it low; try `i2c speed 50` then re-check lines. `0x1F` on bus 2 does this on the lab card |
+| `load-pr` ends with status 1 `PR_ERROR` | the `.rbf` is compressed: `ON_CHIP_BITSTREAM_DECOMPRESSION OFF` missing from the `.qsf` (pr_ip uses `CDRATIO 1`). A plain persona `.rbf` is about 13.2 MB, a compressed one about 7.8 MB |
 | retimer `0x22` absent on bus 1 | the retimer may be held in reset or unpowered by the factory flow; record it |
 
 ## Thermal warning
@@ -241,6 +243,24 @@ card boots from). A power cycle returns to that image.
 Same as every PCIe design on this card: without airflow the die reached 130 °C and the card
 lost power (project 05, 2026-11-19). Keep a fan on it; `fpga1768 temp 5` and
 `i2c sensors` report the die and board temperatures.
+
+## Hardware test
+
+2026-11-19, PCB `M1003380-005`, ASUS X99-E, Windows 10, fan on the heatsink. Base `.sof`
+`E71229EB…` loaded over JTAG (7m10s, JTAG ID `0x02E060DD`), then a warm reboot. Full
+record: [lab-log/2026-11-19-06-i2c.md](../../lab-log/2026-11-19-06-i2c.md).
+
+| Check | Result |
+|-------|--------|
+| `probe` | `1172:E003`, Gen3 x8, BAR0 `0x383FFFE00000`, SHELL_ID `0x49323036`, CAPS `0x06`, PR version `0xAA500003`, persona `0x0001`, PR PLL locked, all four I2C lines high: **OK** |
+| Bus 2 scan | `0x0C`, `0x40`, `0x42`, `0x4C`, `0x4F`, `0x51`, `0x6D` answer; `0x1F` holds SCL > 10 ms (timeout, bus released afterwards); `0x27`, `0x48` NACK |
+| Bus 1 scan | `0x22` only (no QSFP module inserted) |
+| TMP411 `0x4C` | local 40.00 °C, remote 43.00–43.19 °C; FPGA die sensor 40.9–41.6 °C |
+| LM25066 `0x42` | `READ_VIN` 12.179–12.188 V, `READ_VOUT` 12.143–12.157 V, `READ_TEMPERATURE_1` 40.4–40.8 °C; `MFR_READ_IIN` raw `0x0285`–`0x0296`, `MFR_READ_PIN` raw `0x01A2`–`0x01A5` |
+| Retimer `0x22` | `0xFE` = `0x03` (TI vendor ID); `0xEF`–`0xF3` = `0C 31 10 00 00`; `0xFF` and `0xFC` read `0x00`; paged read (`0xFF` ← `0x00`, the only I2C write of the session) returns the same bytes |
+| NACK | absent `0x33` → NACK, exit code 4; next read of `0x4C` succeeds |
+| PR | compressed `.rbf` → status 1 `PR_ERROR` (static region unaffected); plain `.rbf`: `A − B` in 8.08 s and back to `A + B` in 7.86 s, status 5, link and BAR0 unchanged, persona tests passed |
+| I2C after PR | telemetry and bus 2 scan unchanged |
 
 ## Results
 
@@ -256,11 +276,20 @@ PR build of 2026-11-19 (`build_pr.ps1`), Quartus Prime Pro 25.1.0 Build 129 patc
 Fmax (base, Slow 900mV 100C): `clk_100` 157.26 MHz, PR controller clock (50 MHz) 117.07
 MHz, PCIe core clock 275.1 MHz.
 
-| File | Bytes | SHA-256 |
-|------|-------|---------|
-| `i2c_telemetry.sof` | 36,798,658 | `E71229EB8889136ED42EFE3BB2603322712C78CFCA7A37C9E551DFFD56821F98` |
-| `i2c_telemetry.pr_partition.rbf` | 7,844,108 | `A2F016B875D7D6AE8C4F0DABF1D9F60C402423F29B7140C66249F24A70EF7A9F` |
-| `i2c_telemetry_sub.pr_partition.rbf` | 7,844,208 | `B01F2FB69EBC7B0C293D9066779C51871F3A6E4F7877310B81C2835D0CB26F86` |
+| File | Bytes | SHA-256 | Note |
+|------|-------|---------|------|
+| `i2c_telemetry.sof` | 36,798,658 | `E71229EB8889136ED42EFE3BB2603322712C78CFCA7A37C9E551DFFD56821F98` | first assembly; **the image loaded on the card** |
+| `i2c_telemetry.pr_partition.rbf` | 7,844,108 | `A2F016B875D7D6AE8C4F0DABF1D9F60C402423F29B7140C66249F24A70EF7A9F` | compressed, rejected with `PR_ERROR` — do not use |
+| `i2c_telemetry_sub.pr_partition.rbf` | 7,844,208 | `B01F2FB69EBC7B0C293D9066779C51871F3A6E4F7877310B81C2835D0CB26F86` | compressed, rejected with `PR_ERROR` — do not use |
+| `i2c_telemetry.sof` | 36,799,200 | `3F36ED428669440A3F074C88F96F5311B029E31054F059D86B082AFF02853296` | re-assembled with decompression off (same fit); not loaded |
+| `i2c_telemetry.pr_partition.rbf` | 13,193,044 | `F443FDE68BCEC3A0B9E29E4598E2E8D6D31BAD353BDC24123A80741F63FF9FBA` | plain, **loaded successfully** |
+| `i2c_telemetry_sub.pr_partition.rbf` | 13,193,044 | `3D1BE3B2C6435D7AB785C45D7586EBFF14B9DE6BF3EC08BF71A08ABD08A8AE5B` | plain, **loaded successfully** |
+
+The first `build_pr.ps1` run lacked `ON_CHIP_BITSTREAM_DECOMPRESSION OFF` (present in
+projects 04 and 05). Only the assembler was re-run after adding it (`quartus_asm` on both
+revisions, no new fit), so the plain `.rbf` files match the static region of the `.sof`
+already on the card; the PR controller accepted them. A full `build_pr.ps1` from the
+committed sources produces the plain files directly.
 
 Critical warnings: `18326` (CLKUSR on `AP20`, as in every project) and `17951` / `18655`
 (40 unused transceiver channels; PCIe uses 8 of 48), the same set as projects 04 and 05.
