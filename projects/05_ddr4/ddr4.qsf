@@ -1,12 +1,12 @@
 # -------------------------------------------------------------------------- #
-# shell.qsf — Microsoft FPGA 1768 / Catapult v3 "Longs Peak"
+# ddr4.qsf — Microsoft FPGA 1768 / Catapult v3 "Longs Peak"
 #
 # PR BASE revision of the reusable shell: PCIe #1 Gen3 x8 endpoint, two DDR4
 # EMIF channels, die temperature, read-only configuration flash window, PR
 # controller and the persona region u_persona. The base revision implements
 # persona_walk (walking-1/0 and address-line memory test).
 #
-# The implementation revision shell_prbs.qsf repeats the device, pin and PR
+# The implementation revision ddr4_prbs.qsf repeats the device, pin and PR
 # region settings of this file. Keep the two in sync (diff them).
 #
 # Volatile JTAG configuration only. The configuration flash is not written.
@@ -14,7 +14,7 @@
 
 set_global_assignment -name FAMILY "Arria 10"
 set_global_assignment -name DEVICE 10AXF40AA
-set_global_assignment -name TOP_LEVEL_ENTITY shell
+set_global_assignment -name TOP_LEVEL_ENTITY ddr4_top
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 25.1.0
 set_global_assignment -name LAST_QUARTUS_VERSION "25.1.0 SP0.36 Pro Edition"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
@@ -24,11 +24,11 @@ set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
 set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 
 # Source files (static region)
-set_global_assignment -name SYSTEMVERILOG_FILE shell.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ddr4_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE shell_regs.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ddr_port.sv
 set_global_assignment -name SYSTEMVERILOG_FILE sync_bits.sv
-set_global_assignment -name SDC_FILE shell.sdc
+set_global_assignment -name SDC_FILE ddr4.sdc
 set_global_assignment -name QSYS_FILE shell_sys.qsys
 # Persona of this revision
 set_global_assignment -name SYSTEMVERILOG_FILE personas/ddr_test_engine.sv

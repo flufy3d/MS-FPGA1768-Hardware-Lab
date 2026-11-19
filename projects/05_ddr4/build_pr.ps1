@@ -1,18 +1,18 @@
-# Build the partial-reconfiguration flow of 05_shell.
+# Build the partial-reconfiguration flow of 05_ddr4.
 #
 #   . ..\..\scripts\env.ps1
 #   .\build_pr.ps1                 # base + export + implementation
 #   .\build_pr.ps1 -Stage impl     # only the implementation revision
 #
 # Stages:
-#   base    compile revision shell (PR_BASE, persona_walk)
-#   export  export the static region to output_files\shell_static.qdb
-#   impl    compile revision shell_prbs (PR_IMPL, persona_prbs)
+#   base    compile revision ddr4 (PR_BASE, persona_walk)
+#   export  export the static region to output_files\ddr4_static.qdb
+#   impl    compile revision ddr4_prbs (PR_IMPL, persona_prbs)
 #
 # Outputs (output_files\, git-ignored):
-#   shell.sof                   full base image, load over JTAG
-#   shell.pr_partition.rbf      PR bitstream, persona_walk (walking one + address test)
-#   shell_prbs.pr_partition.rbf  PR bitstream, persona_prbs (PRBS-31)
+#   ddr4.sof                    full base image, load over JTAG
+#   ddr4.pr_partition.rbf       PR bitstream, persona_walk (walking one + address test)
+#   ddr4_prbs.pr_partition.rbf  PR bitstream, persona_prbs (PRBS-31)
 #
 # Every persona .rbf is valid only with the .sof of the same base build.
 # Rebuilding the base invalidates all previously built .rbf files.
@@ -27,11 +27,11 @@ $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 . (Join-Path $here '..\..\scripts\env.ps1') | Out-Null
 
-$project = 'shell'
-$base    = 'shell'
-$impl    = 'shell_prbs'
+$project = 'ddr4'
+$base    = 'ddr4'
+$impl    = 'ddr4_prbs'
 $out     = Join-Path $here 'output_files'
-$qdb     = 'output_files/shell_static.qdb'
+$qdb     = 'output_files/ddr4_static.qdb'
 
 function Invoke-Step([string]$name, [scriptblock]$cmd) {
     Write-Host "== $name ($(Get-Date -Format 'HH:mm:ss'))" -ForegroundColor Cyan

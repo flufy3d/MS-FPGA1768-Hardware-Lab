@@ -1,7 +1,7 @@
 `default_nettype none
 
 // --------------------------------------------------------------------------
-// shell — reusable static region for the Microsoft FPGA 1768 (project 05)
+// ddr4_top — DDR4 static region ("shell") for the Microsoft FPGA 1768 (project 05)
 //
 // Static region: PCIe #1 Gen3 x8 endpoint (BAR0), die temperature, PR
 // controller, two DDR4 EMIF channels with their persona ports (ddr_port),
@@ -15,7 +15,7 @@
 // (either channel), [3] 1 Hz heartbeat; [8:4] driven by the persona
 // (off while the persona is frozen or in reset).
 // --------------------------------------------------------------------------
-module shell (
+module ddr4_top (
     input  wire         clk_100,        // AP20, 100 MHz board oscillator
     input  wire         clk_pcie1,      // AN29/AN28, 100 MHz PCIe #1 refclk
     input  wire         pcie1_perstn,   // AW16
@@ -244,7 +244,7 @@ module shell (
     end
 
     // Reconfigurable partition (pr_partition). Entity persona_walk in the
-    // base revision; rebound to persona_prbs in shell_prbs.qsf.
+    // base revision; rebound to persona_prbs in ddr4_prbs.qsf.
     persona_walk u_persona (
         .clk_100    (clk_100),
         .rst_100    (persona_rst),

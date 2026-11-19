@@ -28,5 +28,5 @@ DATE = "06:56:39  November 19, 2026"
 
 # Revisions
 
-PROJECT_REVISION = "shell_prbs"
-PROJECT_REVISION = "shell"
+PROJECT_REVISION = "ddr4_prbs"
+PROJECT_REVISION = "ddr4"

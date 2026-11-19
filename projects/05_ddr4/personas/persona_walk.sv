@@ -3,7 +3,7 @@
 // --------------------------------------------------------------------------
 // persona_walk — DDR4 test persona: walking one / walking zero data test plus address-line test.
 //
-// Reconfigurable partition u_persona of projects/05_shell. Every persona of
+// Reconfigurable partition u_persona of projects/05_ddr4. Every persona of
 // the shell has exactly this port list (the persona ABI, see the README).
 // Persona ID 16'h0101 (persona ABI version 1).
 // --------------------------------------------------------------------------

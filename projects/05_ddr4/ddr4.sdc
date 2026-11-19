@@ -1,4 +1,4 @@
-# shell.sdc — timing constraints of projects/05_shell (both revisions)
+# ddr4.sdc — timing constraints of projects/05_ddr4 (both revisions)
 
 # 100 MHz board oscillator U59 (AP20): BAR0 register bank, persona registers,
 # reference of the 50 MHz PR/flash PLL.

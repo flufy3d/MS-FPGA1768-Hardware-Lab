@@ -23,7 +23,7 @@
 //           LFSR seeded with seed[30:0] (0 -> 1); invert = complement.
 //
 // The xres_ registers change only while a run is in progress; the CSR block
-// reads them in the clk_100 domain after the run (timing cut in shell.sdc).
+// reads them in the clk_100 domain after the run (timing cut in ddr4.sdc).
 // The persona is held in reset after configuration and after every PR.
 // --------------------------------------------------------------------------
 module ddr_test_engine #(

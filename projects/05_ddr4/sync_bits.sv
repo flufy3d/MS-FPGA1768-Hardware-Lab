@@ -5,7 +5,7 @@
 // and for quasi-static buses (values that are stable long before they are
 // used, so per-bit skew does not matter).
 //
-// The first stage is named sync_s0; shell.sdc cuts timing to it.
+// The first stage is named sync_s0; ddr4.sdc cuts timing to it.
 // No initial values: the module is also used inside the PR region, where
 // initial values are not supported.
 // --------------------------------------------------------------------------

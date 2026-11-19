@@ -1,14 +1,14 @@
 # --------------------------------------------------------------------------
-# make_qsys.tcl — build shell_sys.qsys for 05_shell
+# make_qsys.tcl — build shell_sys.qsys for 05_ddr4
 #
 # Run from this directory:
 #   . ..\..\scripts\env.ps1   (required, see AGENTS.md section 7)
 #   Remove-Item -Recurse -Force ip\shell_sys, shell_sys
-#   qsys-script --script=make_qsys.tcl --quartus-project=shell.qpf
+#   qsys-script --script=make_qsys.tcl --quartus-project=ddr4.qpf
 #
 # The static region ("shell") of a reusable PR design: everything below lives
 # in the static region; the reconfigurable persona is instantiated in
-# shell.sv, outside this system.
+# ddr4_top.sv, outside this system.
 #
 #   BAR0 (64-bit prefetchable, 64 KB)
 #   0x0000  SHELL_ID   PIO RO  0x53480501 ("SH", project 05, shell v1)
@@ -17,7 +17,7 @@
 #   0x0050  TEMP       PIO RO  die temperature sensor (as projects 03/04)
 #   0x0060  PERSONA    PIO RO  persona ID and PR state (as project 04)
 #   0x0100  pr_ip      PR controller (alt_pr), as project 04
-#   0x0200  regs_br    256 B  shell registers implemented in shell.sv
+#   0x0200  regs_br    256 B  shell registers implemented in ddr4_top.sv
 #                             (DDR status, quiesce, flash page, DDR mailbox)
 #   0x1000  persona_br 4 KB   persona register window (into the PR region)
 #   0x4000  flash_br   16 KB  read-only window into the configuration flash
@@ -26,7 +26,7 @@
 #
 # Two Arria 10 EMIF DDR4 controllers (top: banks 3E/3F/3G, refclk Y4;
 # bottom: banks 3B/3C/3D, refclk Y3). Their Avalon-MM user ports are exported
-# and connected in shell.sv to the persona through the static DDR port logic
+# and connected in ddr4_top.sv to the persona through the static DDR port logic
 # (ddr_port.sv).
 #
 # EMIF parameters are reproduced from the community DDR4_Dual project
@@ -120,7 +120,7 @@ set_instance_parameter_value scratch_ram dualPort false
 set_instance_parameter_value scratch_ram singleClockOperation false
 set_instance_parameter_value scratch_ram writable true
 
-# Avalon-MM bridges whose master side is exported to shell.sv: the shell
+# Avalon-MM bridges whose master side is exported to ddr4_top.sv: the shell
 # register block, the persona register window and the flash window.
 proc add_bridge {name addr_width} {
     add_instance $name altera_avalon_mm_bridge
@@ -139,7 +139,7 @@ add_bridge persona_br 12
 add_bridge flash_br   14
 
 # Configuration flash controller (ASMI Parallel II, dedicated AS pins).
-# Its memory port is exported and connected in shell.sv with the write
+# Its memory port is exported and connected in ddr4_top.sv with the write
 # strobe tied low: the shell can only read the flash. (A write to the memory
 # port of this IP issues WRITE ENABLE + PAGE PROGRAM by itself, see
 # altera_asmi2_xip_controller in Quartus 25.1; the control/status port, which
@@ -319,10 +319,10 @@ add_interface pr_freeze conduit end
 set_interface_property pr_freeze EXPORT_OF pr_ip.freeze
 add_interface pll_pr_locked conduit end
 set_interface_property pll_pr_locked EXPORT_OF pll_pr.locked
-# Driven by a power-up pulse in shell.sv (Quartus rejects a constant).
+# Driven by a power-up pulse in ddr4_top.sv (Quartus rejects a constant).
 add_interface pll_pr_reset reset end
 set_interface_property pll_pr_reset EXPORT_OF pll_pr.reset
-# The 50 MHz clock is also needed in shell.sv (flash window glue logic).
+# The 50 MHz clock is also needed in ddr4_top.sv (flash window glue logic).
 add_instance clk_50_br altera_clock_bridge
 set_instance_parameter_value clk_50_br EXPLICIT_CLOCK_RATE 50000000
 add_connection pll_pr.outclk0 clk_50_br.in_clk
@@ -339,7 +339,7 @@ set_interface_property flash_mem EXPORT_OF flash.avl_mem
 add_interface flash_csr avalon end
 set_interface_property flash_csr EXPORT_OF flash.avl_csr
 
-# EMIF: every interface except the clock/reset sinks is exported; shell.sv
+# EMIF: every interface except the clock/reset sinks is exported; ddr4_top.sv
 # connects them (pins, refclk, OCT, status, user clock/reset, Avalon port).
 proc export_all {inst} {
     foreach i [get_instance_interfaces $inst] {
