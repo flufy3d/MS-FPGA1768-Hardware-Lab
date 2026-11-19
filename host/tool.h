@@ -6,7 +6,7 @@
  *               selection, capability checks), profile.c (INI files),
  *               bar_windows.c / bar_linux.c (enumerate 1172:E003, map BAR0)
  *   modules     cap_temp.c, cap_pr.c, cap_persona.c, cap_ddr.c, cap_flash.c,
- *               cap_i2c.c
+ *               cap_i2c.c, cap_retimer.c
  *   profiles    host/profiles/<project>.ini
  *
  * Modules never hard-code a BAR0 offset: they ask for it by name with reg()
@@ -83,5 +83,11 @@ int      cmd_flash_dump(int argc, char **argv);
 
 /* cap_i2c.c */
 int      cmd_i2c(int argc, char **argv);
+/* 0 = ACK, 1 = NACK, 2 = timeout / abort. Device modules only. */
+int      i2c_read_regs(int bus, unsigned addr, unsigned reg, unsigned len, uint8_t *out);
+int      i2c_write_reg8(int bus, unsigned addr, unsigned reg, uint8_t val);
+
+/* cap_retimer.c */
+int      cmd_retimer(int argc, char **argv);
 
 #endif

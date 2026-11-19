@@ -29,7 +29,7 @@ Push-Location $PSScriptRoot
 try {
     # Core, capability modules, Windows backend. Keep in sync with Makefile.
     $src = @('fpga1768.c', 'core.c', 'profile.c',
-             'cap_temp.c', 'cap_pr.c', 'cap_persona.c', 'cap_ddr.c', 'cap_flash.c', 'cap_i2c.c',
+             'cap_temp.c', 'cap_pr.c', 'cap_persona.c', 'cap_ddr.c', 'cap_flash.c', 'cap_i2c.c', 'cap_retimer.c',
              'sha256.c', 'bar_windows.c')
     & $cc -O2 -Wall -Wextra -std=c99 -static -o $exe @src -lsetupapi
     if ($LASTEXITCODE -ne 0) { throw "$cc failed with exit code $LASTEXITCODE" }

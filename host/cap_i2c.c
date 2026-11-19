@@ -70,10 +70,11 @@ static void status_text(uint32_t s, char *buf, unsigned len)
 
 /*
  * One transaction. flags: C_READ / C_NOREG. page < 0: no page select.
+ * wdata: bytes for a write transaction (len of them), loaded into DATA first.
  * Returns 0 on ACK, 1 on NACK, 2 on timeout / abort / host timeout.
  */
 static int xfer(int bus, unsigned addr, unsigned regb, int page, uint32_t flags,
-                unsigned len, uint8_t *out, uint32_t *status_out)
+                unsigned len, const uint8_t *wdata, uint8_t *out, uint32_t *status_out)
 {
     uint32_t r_status = reg("regs.i2c_status");
     uint32_t s = rd(r_status);
@@ -84,6 +85,15 @@ static int xfer(int bus, unsigned addr, unsigned regb, int page, uint32_t flags,
             break;
         }
         s = rd(r_status);
+    }
+    if (wdata) {
+        uint32_t base = reg("regs.i2c_data");
+        for (unsigned i = 0; i < len; i += 4) {
+            uint32_t w = 0;
+            for (unsigned j = 0; j < 4 && i + j < len; j++)
+                w |= (uint32_t)wdata[i + j] << (8 * j);
+            wr(base + i, w);
+        }
     }
     wr(reg("regs.i2c_addr"), addr);
     wr(reg("regs.i2c_reg"), regb);
@@ -117,6 +127,24 @@ static int xfer(int bus, unsigned addr, unsigned regb, int page, uint32_t flags,
         }
     }
     return 0;
+}
+
+/* ---- API for device modules (cap_retimer.c) ---- */
+
+int i2c_read_regs(int bus, unsigned addr, unsigned regb, unsigned len, uint8_t *out)
+{
+    if (len < 1 || len > reg("i2c.max_len"))
+        return 2;
+    return xfer(bus, addr, regb, -1, C_READ, len, NULL, out, NULL);
+}
+
+/*
+ * S addr+W REG VAL P. Callers must check their own allow-list; this module
+ * offers no generic write command (see the header comment).
+ */
+int i2c_write_reg8(int bus, unsigned addr, unsigned regb, uint8_t val)
+{
+    return xfer(bus, addr, regb, -1, 0u, 1, &val, NULL, NULL);
 }
 
 static int report_fail(int rc, uint32_t s, int bus, unsigned addr)
@@ -179,7 +207,7 @@ static int cmd_scan(int bus, unsigned first, unsigned last)
                 continue;
             }
             uint32_t s;
-            int rc = xfer(bus, a, 0, -1, C_READ | C_NOREG, 1, NULL, &s);
+            int rc = xfer(bus, a, 0, -1, C_READ | C_NOREG, 1, NULL, NULL, &s);
             if (rc == 0) {
                 n += snprintf(line + n, sizeof(line) - n, "%02x ", a);
                 found++;
@@ -214,7 +242,7 @@ static int cmd_read(int bus, unsigned addr, unsigned regb, int page, unsigned le
 {
     uint8_t d[32];
     uint32_t s;
-    int rc = xfer(bus, addr, regb, page, C_READ, len, d, &s);
+    int rc = xfer(bus, addr, regb, page, C_READ, len, NULL, d, &s);
     if (rc != 0)
         return report_fail(rc, s, bus, addr);
     if (page >= 0)
@@ -244,7 +272,7 @@ static int preg_allowed(unsigned addr)
 static int rd_bytes(int bus, unsigned addr, unsigned regb, unsigned len, uint8_t *d)
 {
     uint32_t s;
-    int rc = xfer(bus, addr, regb, -1, C_READ, len, d, &s);
+    int rc = xfer(bus, addr, regb, -1, C_READ, len, NULL, d, &s);
     if (rc != 0)
         report_fail(rc, s, bus, addr);
     return rc;

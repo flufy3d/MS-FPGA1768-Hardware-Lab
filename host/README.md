@@ -30,6 +30,7 @@ profile.
 | | `cap_ddr.c` | DDR4 status, tests, quiesce, mailbox (`ddr ...`) |
 | | `cap_flash.c` | read-only configuration flash window (`flash-dump`) |
 | | `cap_i2c.c` | I2C master: scan, register reads, board sensors (`i2c ...`) |
+| | `cap_retimer.c` | DS250DF810 retimer on I2C bus 1: status, CDR bypass (`retimer ...`) |
 | profiles | `profiles/<project>.ini` | per-project SHELL_ID, CAPS and every BAR0 offset the modules use |
 | | `sha256.c`, `sha256.h` | SHA-256 of loaded bitstreams and flash dumps |
 
@@ -59,7 +60,7 @@ CAPS bits:
 | Bit | Capability | Commands that need it |
 |-----|------------|-----------------------|
 | 0 | DDR4 | `ddr ...` |
-| 1 | I2C | `i2c ...` |
+| 1 | I2C | `i2c ...`, `retimer ...` |
 | 2 | PR (partial reconfiguration controller) | `load-pr`, `persona` |
 | 3 | flash window (read only) | `flash-dump` |
 
@@ -156,6 +157,7 @@ fpga1768 [--bdf BDF] [--profile NAME] <command>
   ddr status|test|quiesce|peek|poke   [DDR4]  ('ddr help')
   flash-dump FILE [MB] [FLASH] read the configuration flash (read-only window)
   i2c status|scan|read|preg|sensors|speed   [I2C]  ('i2c help')
+  retimer status [CH] | bypass CH|all on|off [I2C]  ('retimer help')
   selftest             offline checks (SHA-256 test vector, every profile file)
 ```
 
@@ -173,6 +175,19 @@ I2C commands (`BUS` is 1 or 2; addresses, registers and pages in hex; `LEN` deci
 | `i2c sensors` | TMP411 `0x03 0x00 0x15 0x01 0x10`, LM25066 `0x88 0x8B 0x8D 0xD1 0xD2` | only the register pointer |
 | `i2c preg BUS ADDR PAGE REG [LEN]` | `S addr+W 0xFF PAGE P`, then a read | **yes, register `0xFF`**; only for addresses in the profile's `i2c.preg_allow` |
 | `i2c speed KHZ [CMD ...]` | none (sets `SCL_DIV`, kept until reload) | no |
+
+`retimer` (profile section `[retimer]`: bus, address, channel count, `write_regs`):
+
+| Command | Writes to the retimer |
+|---------|-----------------------|
+| `retimer status [CH]` | page registers only (`0xFC` channel select, `0xFF` page), restored afterwards. Prints IDs, per-quad EEPROM load status and `refclk_det`, and per channel `sigdet`, detected PRBS, `CDR_STATUS` (raw), `0x09`, `0x1E`, output selection, HEO/VEO, `0x2F` |
+| `retimer bypass CH\|all on` | `0x1E[7:5]` ← `000` (raw data), then `0x09[5]` ← 1 (`REG_BYPASS_PFD_OV`); read back |
+| `retimer bypass CH\|all off` | `0x09[5]` ← 0, then `0x1E[7:5]` ← `111` (register default `0xE9`); read back |
+
+Only the registers listed in `retimer.write_regs` (`0xFC 0xFF 0x09 0x1E`) can be written;
+settings are volatile in the retimer (power off restores the defaults). Register meanings:
+TI datasheet SNLS513C, Tables 9–12 (checked against the PDF text, 2026-11-19). Verified on
+the card 2026-11-19 (bypass on / off on all eight channels, read back).
 
 There is deliberately no generic I2C write command: bus 2 carries the VR controller and the
 hot-swap controller (AGENTS.md, section 12). `i2c sensors` converts LM25066 `READ_VIN`,

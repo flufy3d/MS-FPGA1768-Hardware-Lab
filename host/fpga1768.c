@@ -21,6 +21,7 @@
  *   ddr ...              DDR4 commands ('ddr help')
  *   flash-dump FILE [MB] read the configuration flash (read-only window)
  *   i2c ...              I2C master commands ('i2c help')
+ *   retimer ...          DS250DF810 retimer status / bypass ('retimer help')
  *   selftest             offline checks (no device needed)
  */
 #include <stdio.h>
@@ -317,6 +318,7 @@ static void usage(void)
            "  ddr status|test|quiesce|peek|poke   DDR4 commands, 'ddr help'           [DDR4]\n"
            "  flash-dump FILE [MB] read the configuration flash (read-only window)      [FLASH]\n"
            "  i2c status|scan|read|preg|sensors|speed   I2C commands, 'i2c help'     [I2C]\n"
+           "  retimer status|bypass   DS250DF810 retimer, 'retimer help'          [I2C]\n"
            "  selftest             offline checks (SHA-256, profile files)\n\n"
            "--bdf selects the PCI device on Linux (default: first %04x:%04x).\n"
            "--profile forces a profile (name or .ini path) instead of matching SHELL_ID.\n"
@@ -389,6 +391,8 @@ int main(int argc, char **argv)
         rc = cmd_flash_dump(nargs, argv + ai);
     } else if (!strcmp(cmd, "i2c")) {
         rc = cmd_i2c(nargs, argv + ai);
+    } else if (!strcmp(cmd, "retimer")) {
+        rc = cmd_retimer(nargs, argv + ai);
     } else {
         usage();
         rc = 2;
