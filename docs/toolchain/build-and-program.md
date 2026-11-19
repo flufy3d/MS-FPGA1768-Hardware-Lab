@@ -85,6 +85,32 @@ quartus_pgm -m jtag -o "p;hello_world.jic"
 
 After a power cycle the FPGA configures itself from flash and the design survives.
 
+### Offline conversion check (2026-11-19, no flash write)
+
+Before writing anything, the conversion itself was validated on the lab host with Quartus
+Prime Pro 25.1 patch 0.36, without touching the card:
+
+| Input | Output | Result |
+|-------|--------|--------|
+| `shell.sof` (37 MB) | `.jic` | **OK**, 134 217 969 bytes, 18 s |
+| `shell.sof` | `.pof` | OK, 134 217 946 bytes, 15 s |
+| `.hex` (raw dump, 1 MB slice) | `.jic` | `Error (213023): Input file … is incompatible with selected output programming file type` |
+| `.hex` | `.pof` | failed, exit 3 |
+| `.pof` | `.jic` | failed, exit 3 |
+
+The `.jic` header names `10AXF40AA` and `EPCQL1024`, and the file is exactly 128 MiB plus
+241 bytes of header, i.e. the whole 1 Gb flash. SHA-256 of that file:
+`A355CA324DFAF45D5972A5CDB97E963C484624829E30D20711331463F6810A02`.
+
+**Consequence: there is no `.hex → .jic` flow.** `quartus_cpf` accepts only a `.sof` as
+input for `.jic`/`.pof`, so the raw flash backup (`flash_a.bin`, 128 MB) cannot be turned
+back into a programming file with Quartus. Restoring the factory image after a flash write
+would need an external SPI programmer on U19, or a design that writes raw bytes through
+the serial flash loader. Until one of those exists, treat a flash write as irreversible:
+the backup protects against losing the data, not against losing the card's ability to boot
+the Microsoft image.
+
+
 ### Backing up the configuration flash
 
 **Do this before writing anything.** The card shipped with a Microsoft bitstream that is
@@ -100,6 +126,12 @@ read-back). The practical options are:
    in "read" mode — not provided out of the box.
 3. **Keep the original `.sof`**: if you only need a working design, save the current
    bitstream by reading the flash with method 1 and keep the dump in a safe place.
+
+A fourth option now exists in this lab: `projects/05_shell` exposes a read-only window into
+the flash, and `fpga1768 flash-dump FILE` reads all 128 MB (about 3 minutes). Two runs on
+2026-11-19 produced identical dumps (SHA-256 `4C727C31…9326C`). That gives a verified
+backup of the data, but see the conversion table above: Quartus cannot turn that dump back
+into a `.jic`, so the dump alone does not make a flash write reversible.
 
 This repository keeps `firmware/prebuilt/Catapult_v3_sfl.sof` (from the Microsoft OpenCL
 BSP) and links to the OpenCL base `.sof`, but **not** a dump of this specific card's flash.
