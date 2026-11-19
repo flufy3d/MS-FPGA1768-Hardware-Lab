@@ -4,8 +4,8 @@
 CC      ?= cc
 CFLAGS  ?= -O2 -Wall -Wextra -std=c99
 
-SRCS = fpga1768.c bar_linux.c sha256.c
-HDRS = bar_access.h sha256.h
+SRCS = fpga1768.c ddr.c bar_linux.c sha256.c
+HDRS = bar_access.h sha256.h tool.h
 
 fpga1768: $(SRCS) $(HDRS)
 	$(CC) $(CFLAGS) -o $@ $(SRCS)

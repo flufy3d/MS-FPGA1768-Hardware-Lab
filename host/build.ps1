@@ -28,7 +28,7 @@ $env:Path = (Split-Path (Get-Command $cc).Source) + ';' + $env:Path
 Push-Location $PSScriptRoot
 try {
     & $cc -O2 -Wall -Wextra -std=c99 -static -o $exe `
-        fpga1768.c bar_windows.c sha256.c -lsetupapi
+        fpga1768.c ddr.c bar_windows.c sha256.c -lsetupapi
     if ($LASTEXITCODE -ne 0) { throw "$cc failed with exit code $LASTEXITCODE" }
 } finally {
     Pop-Location

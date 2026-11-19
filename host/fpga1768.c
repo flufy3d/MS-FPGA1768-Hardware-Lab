@@ -23,28 +23,20 @@
 
 #include "bar_access.h"
 #include "sha256.h"
+#include "tool.h"
 
-/* BAR0 register map (projects 03 and 04). */
+/* Project 03/04 registers (A + B persona). */
 #define REG_A        0x00u
 #define REG_B        0x10u
 #define REG_SUM      0x20u
-#define REG_COUNTER  0x30u
-#define REG_ID       0x40u
-#define REG_TEMP     0x50u
-#define REG_PERSONA  0x60u   /* project 04 only */
-#define REG_PR_DATA  0x100u
-#define REG_PR_CSR   0x104u
-#define REG_PR_VER   0x108u
-#define REG_PR_ID    0x10Cu
 
-#define ID_VALUE     0x50434945u
 #define PR_VERSION   0xAA500003u  /* alt_pr CSR_VERSION, Quartus Prime Pro 25.1 */
 
 #define TEMP_NOTE_C  95.0         /* readings at or above this are flagged, nothing else */
 
-static bar_t *g_bar;
+bar_t *g_bar;
 
-static uint32_t rd(uint32_t off)
+uint32_t rd(uint32_t off)
 {
     uint32_t v = 0;
     if (bar_read32(g_bar, off, &v) != 0)
@@ -52,10 +44,15 @@ static uint32_t rd(uint32_t off)
     return v;
 }
 
-static void wr(uint32_t off, uint32_t v)
+void wr(uint32_t off, uint32_t v)
 {
     if (bar_write32(g_bar, off, v) != 0)
         exit(5);
+}
+
+int is_shell(void)
+{
+    return rd(REG_SHELL_ID) == SHELL_ID_V1;
 }
 
 static double temp_c(uint32_t reg)
@@ -64,7 +61,12 @@ static double temp_c(uint32_t reg)
     return (double)(reg & 0x3FFu) * 693.0 / 1024.0 - 265.0;
 }
 
-static void print_temp_line(void)
+double temp_now(void)
+{
+    return temp_c(rd(REG_TEMP));
+}
+
+void print_temp_line(void)
 {
     char ts[32];
     uint32_t t = rd(REG_TEMP);
@@ -116,7 +118,7 @@ static void print_persona(void)
            (unsigned)rd(REG_PR_VER), (unsigned)rd(REG_PR_ID));
 }
 
-static int require_id(void)
+int require_id(void)
 {
     uint32_t id = rd(REG_ID);
     if (id != ID_VALUE) {
@@ -422,6 +424,10 @@ int main(int argc, char **argv)
         rc = cmd_persona();
     } else if (!strcmp(cmd, "load-pr") && nargs == 1) {
         rc = cmd_load_pr(argv[ai]);
+    } else if (!strcmp(cmd, "ddr")) {
+        rc = cmd_ddr(nargs, argv + ai);
+    } else if (!strcmp(cmd, "flash-dump")) {
+        rc = cmd_flash_dump(nargs, argv + ai);
     } else {
         usage();
         rc = 2;
