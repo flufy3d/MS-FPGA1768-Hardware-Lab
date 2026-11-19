@@ -170,15 +170,17 @@ I2C commands (`BUS` is 1 or 2; addresses, registers and pages in hex; `LEN` deci
 | `i2c status` | none | no |
 | `i2c scan BUS [FIRST LAST]` | `S addr+R byte P` per address (0x08–0x77); stops at the first timeout; refuses to start if a line reads low | no |
 | `i2c read BUS ADDR REG [LEN]` | `S addr+W REG Sr addr+R data P` (1–28 bytes) | only the register pointer |
-| `i2c sensors` | TMP411 `0x03 0x00 0x15 0x01 0x10`, LM25066 `0x88 0x8B 0x8D 0x89 0x97` | only the register pointer |
+| `i2c sensors` | TMP411 `0x03 0x00 0x15 0x01 0x10`, LM25066 `0x88 0x8B 0x8D 0xD1 0xD2` | only the register pointer |
 | `i2c preg BUS ADDR PAGE REG [LEN]` | `S addr+W 0xFF PAGE P`, then a read | **yes, register `0xFF`**; only for addresses in the profile's `i2c.preg_allow` |
 | `i2c speed KHZ [CMD ...]` | none (sets `SCL_DIV`, kept until reload) | no |
 
 There is deliberately no generic I2C write command: bus 2 carries the VR controller and the
 hot-swap controller (AGENTS.md, section 12). `i2c sensors` converts LM25066 `READ_VIN`,
 `READ_VOUT` and `READ_TEMPERATURE_1` with the DIRECT-format coefficients of the datasheet
-(Table 41); `READ_IIN` and `READ_PIN` are printed raw because their coefficients depend on
-the sense resistor, whose value on this card is `unknown`.
+(Table 41); `MFR_READ_IIN` (`0xD1`) and `MFR_READ_PIN` (`0xD2`) are printed raw because
+their coefficients depend on the sense resistor, whose value on this card is `unknown`.
+(The LM25066 NACKs the standard PMBus `READ_IIN` `0x89` and `READ_PIN` `0x97`; verified
+2026-11-19.)
 
 `write` is refused unless BAR0 + `regs.id` (`0x40`) reads `0x50434945` (same check as the
 Windows driver). `load-pr` prints the file's SHA-256, the link, BAR0 and temperature before

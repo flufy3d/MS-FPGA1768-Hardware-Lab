@@ -279,13 +279,16 @@ static int cmd_sensors(void)
 
     /* LM25066 PMBus DIRECT format, datasheet Table 41:
        X = (Y * 10^-R - b) / m; VIN/VOUT m=22070 b=-1800 R=-2; TEMP m=16000 b=0 R=-3.
-       IIN/PIN coefficients depend on the sense resistor (unknown): raw only. */
+       Input current and power are manufacturer commands MFR_READ_IIN (0xD1) and
+       MFR_READ_PIN (0xD2); the standard 0x89 / 0x97 are NACKed by this part
+       (measured 2026-11-19). Their coefficients depend on the sense resistor
+       (unknown): raw only. */
     static const struct { unsigned cmd; const char *name; double m, b; int r; } pm[] = {
         { 0x88, "READ_VIN ", 22070.0, -1800.0, -2 },
         { 0x8B, "READ_VOUT", 22070.0, -1800.0, -2 },
         { 0x8D, "READ_TEMP", 16000.0,     0.0, -3 },
-        { 0x89, "READ_IIN ",     0.0,     0.0,  0 },
-        { 0x97, "READ_PIN ",     0.0,     0.0,  0 },
+        { 0xD1, "READ_IIN ",     0.0,     0.0,  0 },
+        { 0xD2, "READ_PIN ",     0.0,     0.0,  0 },
     };
     printf("LM25066 bus %d 0x%02X:\n", bus, lm);
     for (unsigned i = 0; i < sizeof(pm) / sizeof(pm[0]); i++) {
