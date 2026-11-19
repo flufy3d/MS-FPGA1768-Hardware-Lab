@@ -91,7 +91,8 @@ from the QSPI flash and the card returns to its as-found state (`1414:B204` on P
 No recovery step is needed as long as you never wrote the flash.
 
 > **This changed on 2026-11-19.** On the lab card the configuration flash was
-> **deliberately overwritten** with `projects/05_shell`, so a power cycle now loads that
+> **deliberately overwritten** with `projects/05_ddr4` (built as `05_shell`), so a power
+> cycle now loads that
 > shell (`1172:E003`) instead of the Microsoft image. The factory image is gone from this
 > card and the raw backup cannot be turned back into a programming file with Quartus —
 > see [toolchain/build-and-program.md](../toolchain/build-and-program.md) and

@@ -53,7 +53,7 @@ photo shows the inductor/capacitor bank around the FPGA and near the PCIe finger
   power 36 minutes after power-on in an earlier run. Values use the vendor sensor formula
   and were not cross-checked. See
   [lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../../lab-log/2026-11-18-pcie-gen3-bar0-temp.md).
-  **Measured 2026-11-19 (`projects/05_shell`, both DDR4 channels):** the Quartus Power
+  **Measured 2026-11-19 (`projects/05_ddr4`, then `05_shell`, both DDR4 channels):** the Quartus Power
   Analyzer puts the design at 15.0 W (I/O 6.20 W, device static 5.33 W, transceivers
   2.47 W, core dynamic 1.01 W). Without a fan the die read 130.2 °C five minutes after
   configuration and the card lost power 78 s later; with a small fan over the passive

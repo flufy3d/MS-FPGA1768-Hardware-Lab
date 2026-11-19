@@ -145,7 +145,7 @@ read-back). The practical options are:
 3. **Keep the original `.sof`**: if you only need a working design, save the current
    bitstream by reading the flash with method 1 and keep the dump in a safe place.
 
-A fourth option now exists in this lab: `projects/05_shell` exposes a read-only window into
+A fourth option now exists in this lab: `projects/05_ddr4` exposes a read-only window into
 the flash, and `fpga1768 flash-dump FILE` reads all 128 MB (about 3 minutes). Two runs on
 2026-11-19 produced identical dumps (SHA-256 `4C727C31…9326C`). That gives a verified
 backup of the data, but see the conversion table above: Quartus cannot turn that dump back

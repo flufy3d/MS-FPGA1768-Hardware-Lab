@@ -6,7 +6,7 @@
 > Source: [DDR4 pinout CSVs](../../hardware/pinouts/csv/), [BOM](../../hardware/pinouts/csv/bom_0_BOM.csv),
 > `H5AN4G6NAFR-UHC` datasheet, community DDR4_Dual project, Quartus Prime Pro 25.1, and
 > [lab-log/2026-11-19-05-shell-ddr4.md](../../lab-log/2026-11-19-05-shell-ddr4.md)
-> Last verified: 2026-11-19 (hardware, `projects/05_shell`)
+> Last verified: 2026-11-19 (hardware, `projects/05_ddr4`, then named `05_shell`)
 
 ## Topology
 
@@ -46,7 +46,7 @@ fails. (An earlier note said the opposite; it was wrong.)
 | Evidence | Status |
 |----------|--------|
 | Y3/Y4 are 266.667 MHz; 266.667 × 4 = 1066.667 MHz | reported (BOM) |
-| The Arria 10 EMIF IP (Quartus Prime Pro 25.1), with a 266.667 MHz PLL reference clock and quarter-rate user clock, reports *"Valid memory frequencies … 1066.67"* — the only valid choice. DDR4-2400 is not reachable from these oscillators. | verified 2026-11-19 (IP generation, projects/05_shell) |
+| The Arria 10 EMIF IP (Quartus Prime Pro 25.1), with a 266.667 MHz PLL reference clock and quarter-rate user clock, reports *"Valid memory frequencies … 1066.67"* — the only valid choice. DDR4-2400 is not reachable from these oscillators. | verified 2026-11-19 (IP generation, projects/05_ddr4) |
 | Community DDR4_Dual project: `PHY_DDR4_MEM_CLK_FREQ_MHZ 1066.667`, `DDR4_SPEEDBIN_2133`, CL 15 | reported |
 | OpenCL BSP `max_bandwidth="34128"` = 2 channels × 2133 MT/s × 8 bytes | reported |
 
@@ -76,7 +76,7 @@ The community [DDR4_Dual](https://github.com/tow3rs/catapult-v3-smartnic-re) pro
 There is no published board-skew data for this card. If calibration margins are poor, the
 board-skew parameters are the first suspect; measuring them would need the PCB layout.
 
-`projects/05_shell/make_qsys.tcl` reproduces these values in a script (with ECC disabled
+`projects/05_ddr4/make_qsys.tcl` reproduces these values in a script (with ECC disabled
 so that a memory test sees all 72 DQ lines). The upstream project files are not copied
 into this repository.
 
@@ -100,7 +100,7 @@ Full machine-readable pinouts (the CSVs agree pin for pin with the DDR4_Dual `.q
 
 ## Using the memory
 
-- Lab design: [projects/05_shell](../../projects/05_shell/) — both channels behind the PCIe
+- Lab design: [projects/05_ddr4](../../projects/05_ddr4/) — both channels behind the PCIe
   shell, memory tests as PR personas. Bring-up procedure:
   [bringup/04-ddr4.md](../bringup/04-ddr4.md).
 - The EMIF reference clock comes from Y3/Y4 (dedicated pins in the address/command bank);
@@ -114,7 +114,7 @@ Full machine-readable pinouts (the CSVs agree pin for pin with the DDR4_Dual `.q
   PCIe variant; it did not run a traffic test.
 - The OpenCL BSP uses both channels as one 4 GiB interleaved global memory (two 2 GiB
   windows at `0x0` and `0x1_0000_0000`).
-- In this lab, 2026-11-19 (`projects/05_shell`, PCB `M1003380-005`): both channels
+- In this lab, 2026-11-19 (`projects/05_ddr4` as `05_shell`, PCB `M1003380-005`): both channels
   `cal SUCCESS` at the first read after boot, and the full 2304 MiB of each channel passed
   a walking-one test with the address test enabled and a PRBS-31 test, 0 error words,
   18.2 GB/s per channel. The persona was replaced over PCIe in between without losing

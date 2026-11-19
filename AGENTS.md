@@ -66,11 +66,20 @@ hardware/                  physical artifacts
   photos/                  board and screenshots
   tools/usb-blaster/       Quartus JTAG plugin binaries (do not edit)
 firmware/prebuilt/         small known-good bitstreams (SFL, recovery)
-projects/NN_name/          Quartus projects maintained here
+projects/NN_name/          Quartus projects maintained here, one self-contained design each
 scripts/                   PowerShell helpers
 host/                      shared C host tool (fpga1768), Windows + Linux backends
+  profiles/<project>.ini   host profile of each PCIe project (SHELL_ID, CAPS, BAR0 offsets)
 lab-log/YYYY-MM-DD-*.md    dated record of physical experiments
 ```
+
+**Projects.** Each `projects/NN_name/` directory is a complete Quartus design with its own
+RTL, constraints, Platform Designer sources, simulation, build scripts and README; the
+numbers give the bring-up order (`01_hello_world` LEDs, `02`–`04` PCIe and partial
+reconfiguration, `05_ddr4` DDR4). [projects/README.md](projects/README.md) lists them and
+marks which ones serve as templates (`03_pcie_gen3` minimal, `05_ddr4` full). PCIe
+projects are driven by the one shared host tool in `host/`, which selects the project's
+profile from the SHELL_ID it reads at BAR0 `0x00`.
 
 Where does a new piece of information go?
 
@@ -80,7 +89,7 @@ Where does a new piece of information go?
 | A new pin or signal | `hardware/pinouts/README.md` + CSV + the relevant hardware page |
 | A new Quartus design | `projects/NN_name/` with its own README |
 | A fix for a tool problem | `docs/toolchain/` and, if it is a symptom, `docs/troubleshooting.md` |
-| A host-side command for a PCIe design | `host/` (shared tool) + the project README |
+| A host-side command for a PCIe design | `host/` (capability module in the shared tool) + `host/profiles/<project>.ini` + the project README |
 | A link to someone else's work | `docs/reference/links.md` |
 | An interactive model or demo | `docs/demo/` and `.github/workflows/pages.yml` |
 | A failed experiment | `lab-log/` — failures are data, keep them |
@@ -187,6 +196,20 @@ If hardware is not available, say so explicitly in the commit message and in the
 - `output_files/`, `db/`, `incremental_db/`, `*.qws`, `greybox_tmp/` are git-ignored.
 - A project README states: purpose, pins used, how to build, how to program, expected
   observation, resource usage, and status.
+- **No cross-project shared design library.** RTL, `.qsys`, `.ip`, constraints and scripts
+  are never referenced from another project's directory. Reuse a design by copying the
+  closest project as a template (see the *Template* column in `projects/README.md`) and
+  renaming it; the copies are then free to diverge.
+- **Each project is self-contained, including its host profile.** A PCIe project ships
+  `host/profiles/<project>.ini` (named after the project directory) next to its RTL
+  changes, and implements the host contract at the start of BAR0: `0x00` SHELL_ID (unique
+  per project), `0x04` CAPS (bit 0 DDR4, bit 1 I2C, bit 2 PR, bit 3 flash window), `0x08`
+  CAPS2 (reserved, 0). A register map change updates the profile in the same change set
+  (a separate `tool:` commit, per the one-purpose rule). See `host/README.md`.
+- **A persona `.rbf` only matches the base `.sof` of the same project build.** Any
+  recompile of the base revision (including a rename or a register change in the static
+  region) invalidates every persona bitstream built before it; rebuild the personas with
+  the base and record their SHA-256 together.
 
 ## 10. Git conventions
 

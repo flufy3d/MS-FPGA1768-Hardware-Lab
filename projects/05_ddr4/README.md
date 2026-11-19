@@ -1,4 +1,9 @@
-# 05 — Shell: PCIe + DDR4 static region, memory tests as PR personas
+# 05 — DDR4: PCIe + DDR4 static region, memory tests as PR personas
+
+> Renamed from `05_shell` on 2026-11-19 (project files `ddr4.qpf` / `ddr4.qsf` /
+> `ddr4_prbs.qsf`, top-level entity `ddr4_top`). Internal names such as `shell_sys`,
+> `shell_regs` and the "shell" (static region) wording are unchanged. The hardware results
+> below were obtained with the pre-rename build.
 
 A reusable **static region ("shell")** for the card: the Gen3 x8 PCIe endpoint, the PR
 controller and the temperature register of
@@ -13,20 +18,32 @@ PCIe link stay up.
 
 | Item | Value |
 |------|-------|
-| Top-level entity | `shell` |
-| Revisions | `shell` (PR base, persona `persona_walk`) and `shell_prbs` (PR implementation, persona `persona_prbs`) |
+| Top-level entity | `ddr4_top` |
+| Revisions | `ddr4` (PR base, persona `persona_walk`) and `ddr4_prbs` (PR implementation, persona `persona_prbs`) |
+| Host profile | [`host/profiles/05_ddr4.ini`](../../host/profiles/05_ddr4.ini): SHELL_ID `0x53480501`, CAPS `0x0000000D` (DDR4, PR, flash window; no I2C) |
 | Device | `10AXF40AA` (Arria 10) |
 | PCIe | #1, Gen3 x8, Avalon-MM with DMA HIP (DMA unused), 64-bit prefetchable BAR0, 64 KB, `0x1172` / `0xE003` (same driver as projects 02–04) |
 | DDR4 | 2 × EMIF, DDR4-2133 (1066.667 MHz), 72 bit, ECC off, hard controller, quarter rate (user clock 266.667 MHz, 576-bit words) |
 | Flash | ASMI Parallel II, **read only** (write strobe tied low in RTL) |
 | Configuration | volatile `.sof` over JTAG; personas over PCIe; the configuration flash is not written by this design. Since 2026-11-19 the lab card's flash holds this shell, so it boots from flash at power-up |
-| Status | **verified on hardware** (2026-11-19): Gen3 x8, both DDR4 channels calibrated, full 2304 MiB per channel passes walking one and PRBS-31, persona swaps over PCIe. The lab card now boots this shell from its configuration flash. Needs airflow — see [Thermal warning](#thermal-warning) |
+| Status | **Built, not tested on hardware after rename** (2026-11-19): the renamed build with the CAPS register compiles with timing met and passes both simulation modes; it has not been loaded on the card. The pre-rename build (`05_shell`, `shell.sof`) is **verified on hardware** (2026-11-19): Gen3 x8, both DDR4 channels calibrated, full 2304 MiB per channel passes walking one and PRBS-31, persona swaps over PCIe; the lab card boots that build from its configuration flash. Needs airflow — see [Thermal warning](#thermal-warning) |
 
 ## Register map (BAR0)
+
+`0x0000`–`0x000F` is the identity block of the host contract (SHELL_ID, CAPS, CAPS2; see
+[host/README.md](../../host/README.md)): a 16-byte Avalon-MM bridge (`id_br`) answered by
+read-only logic in `ddr4_top.sv`, writes ignored. It replaced the `pio_shell` input PIO
+with the same span on 2026-11-19; in builds before that (including the image in the lab
+card's flash) `0x04` and `0x08` were the PIO's unimplemented direction/interrupt-mask
+registers and read `0`, so no register moved. The host tool treats a CAPS value of `0`
+with a matching SHELL_ID as such an older build.
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
 | `0x0000` | `SHELL_ID` | RO | `0x53480501` ("SH", project 05, shell v1) |
+| `0x0004` | `CAPS` | RO | `0x0000000D`: `[0]` DDR4, `[1]` I2C (0, not present), `[2]` PR, `[3]` flash window |
+| `0x0008` | `CAPS2` | RO | `0x00000000` (reserved) |
+| `0x000C` | — | RO | reads `0` |
 | `0x0030` | `COUNTER` | RO | free-running 100 MHz counter |
 | `0x0040` | `ID` | RO | `0x50434945` (the Windows driver allows writes only when it reads this) |
 | `0x0050` | `TEMP` | RO | die temperature sensor, same format as projects 03/04 |
@@ -73,7 +90,7 @@ reset.
 
 ```
                        static region (shell)                                          PR region
-PCIe #1 ─ Arria 10 HIP ─ rxm_bar0 ─┬─ PIOs (ID, COUNTER, TEMP, PERSONA, SHELL_ID)
+PCIe #1 ─ Arria 10 HIP ─ rxm_bar0 ─┬─ id_br ─► identity block (SHELL_ID, CAPS, CAPS2); PIOs (ID, COUNTER, TEMP, PERSONA)
                                    ├─ pr_ip (alt_pr, 50 MHz) ── freeze ─► persona reset
                                    ├─ regs_br ─► shell_regs (DDR status, quiesce, mailbox, flash page)
                                    ├─ persona_br ─────────────── gate ──────────────────────► u_persona
@@ -88,8 +105,10 @@ Y3 ─► EMIF bot  (3B/3C/3D) ─ amm ─ ddr_port (FIFO, quiesce, mailbox) ◄
   tracking is enabled, so a burst cut by a freeze would hang the EMIF. With burst length 1
   (one 576-bit word = one DDR4 BL8 burst) that cannot happen; `ddr_port` replaces the
   freeze bridge.
-- **Quiesce before PR.** `fpga1768 load-pr` sets `QUIESCE`, waits until both ports report
-  quiesced (FIFO empty, no read outstanding), loads the persona and clears `QUIESCE`.
+- **Quiesce before PR.** `QUIESCE` stops both ports and `quiesced` reports FIFO empty and
+  no read outstanding. `fpga1768 load-pr` does **not** set it by itself (it never did; an
+  earlier version of this README said so): run `fpga1768 ddr quiesce on` before
+  `load-pr` and `ddr quiesce off` after it if a persona may have DDR traffic in flight.
   Independently, `ddr_port` stops accepting commands while the persona is in reset, and
   commands already queued always complete.
 - **The DDR contents survive a persona swap**: the EMIFs (and their refresh) are in the
@@ -99,7 +118,7 @@ Y3 ─► EMIF bot  (3B/3C/3D) ─ amm ─ ddr_port (FIFO, quiesce, mailbox) ◄
   registered read-issue/return for the outstanding counter, and registered read data.
 - Flash: the ASMI Parallel II memory port issues WRITE ENABLE + PAGE PROGRAM by itself on a
   write (`altera_asmi2_xip_controller`, Quartus 25.1), so the write strobe is tied low in
-  `shell.sv` and the control port (erase) is tied off. The shell cannot modify the flash.
+  `ddr4_top.sv` and the control port (erase) is tied off. The shell cannot modify the flash.
 - PR region `X96 Y72`–`X127 Y151` (route region 2 columns/rows larger), between I/O column 2
   (bank 2A at X=78) and I/O column 3 (X=142; the DDR4 banks span Y≈26–181). Project 04's
   region (X120–139, Y120–139) touched the top channel's banks 3E/3F and was moved. The
@@ -141,7 +160,7 @@ Persona register map (`0x1000` + offset):
 
 ## Pins used
 
-All locations and I/O standards are in `shell.qsf` (and, identically, `shell_prbs.qsf`).
+All locations and I/O standards are in `ddr4.qsf` (and, identically, `ddr4_prbs.qsf`).
 
 | Signal | Pin(s) | Notes |
 |--------|--------|-------|
@@ -160,15 +179,15 @@ The configuration flash uses the dedicated AS pins (no assignment).
 ```powershell
 . ..\..\scripts\env.ps1
 Remove-Item -Recurse -Force ip\shell_sys, shell_sys -ErrorAction SilentlyContinue
-& "$env:QUARTUS_ROOTDIR\..\qsys\bin\qsys-script.exe" --script=make_qsys.tcl --quartus-project=shell.qpf
-& "$env:QUARTUS_ROOTDIR\..\qsys\bin\qsys-generate.exe" shell_sys.qsys --quartus-project=shell.qpf `
-    --rev=shell --synthesis=VERILOG --parallel=off --family="Arria 10" --part=10AXF40AA
+& "$env:QUARTUS_ROOTDIR\..\qsys\bin\qsys-script.exe" --script=make_qsys.tcl --quartus-project=ddr4.qpf
+& "$env:QUARTUS_ROOTDIR\..\qsys\bin\qsys-generate.exe" shell_sys.qsys --quartus-project=ddr4.qpf `
+    --rev=ddr4 --synthesis=VERILOG --parallel=off --family="Arria 10" --part=10AXF40AA
 .\build_pr.ps1            # base compile, export static region, implementation compile
 ```
 
 `qsys-script --quartus-project` adds new `IP_FILE` lines only to the current revision:
-after regenerating, check that `shell.qsf` and `shell_prbs.qsf` list the same IP files
-(`diff --strip-trailing-cr shell.qsf shell_prbs.qsf` shows only the persona file and the
+after regenerating, check that `ddr4.qsf` and `ddr4_prbs.qsf` list the same IP files
+(`diff --strip-trailing-cr ddr4.qsf ddr4_prbs.qsf` shows only the persona file and the
 PR block).
 
 `--parallel=off` is a lab-host workaround: parallel IP generation starts several
@@ -190,23 +209,25 @@ The DDR port and both persona bodies have a logic test bench that does not need 
 `==== PASSED`. Questa is a separate install: `scripts\env.ps1` finds it through
 `QUESTA_ROOTDIR`, or `D:\questasim64_2024.1`, or the copies under the Quartus tree.
 
-Outputs in `output_files/`: `shell.sof` (full image), `shell.pr_partition.rbf`
-(`persona_walk`), `shell_prbs.pr_partition.rbf` (`persona_prbs`). Every `.rbf` is valid
+Outputs in `output_files/`: `ddr4.sof` (full image), `ddr4.pr_partition.rbf`
+(`persona_walk`), `ddr4_prbs.pr_partition.rbf` (`persona_prbs`). Every `.rbf` is valid
 only with the `.sof` of the same base compile.
 
 ## Host tool
 
-The shared tool [`host/`](../../host/) (`fpga1768`, Windows and Linux backends) has the
-shell commands:
+The shared tool [`host/`](../../host/) (`fpga1768`, Windows and Linux backends) selects
+the profile [`host/profiles/05_ddr4.ini`](../../host/profiles/05_ddr4.ini) from SHELL_ID
+and allows the DDR4, PR and flash commands because CAPS has those bits:
 
 ```
-fpga1768 info                      link, BAR0, temperature, PR state, DDR status, persona
+fpga1768 probe                     read only: SHELL_ID, CAPS, profile offsets, sanity reads
+fpga1768 info                      link, BAR0, profile/CAPS, temperature, PR state, persona
 fpga1768 ddr status
 fpga1768 ddr test [--ch top|bot|both] [--start W] [--end W] [--seed S] [--invert]
                   [--addr-test] [--no-write] [--no-read] [--timeout SEC] [--temp-every SEC]
 fpga1768 ddr quiesce on|off
 fpga1768 ddr peek top|bot ADDR     / ddr poke top|bot ADDR VALUE32   (mailbox)
-fpga1768 load-pr FILE              quiesce, load persona, check link/BAR0, release
+fpga1768 load-pr FILE              load persona, check link/BAR0 (quiesce first, see Design)
 fpga1768 flash-dump FILE [MB]      read the configuration flash, print SHA-256
 ```
 
@@ -216,21 +237,28 @@ Windows lab host:
 
 ```powershell
 . ..\..\scripts\env.ps1
-quartus_pgm -m jtag -o "p;output_files\shell.sof"    # do not run jtagconfig first
+quartus_pgm -m jtag -o "p;output_files\ddr4.sof"     # do not run jtagconfig first
 shutdown /r /t 0                                      # warm reboot: the 64-bit BAR is assigned at boot
 # after the reboot:
 $t = "..\..\host\build\fpga1768.exe"
+& $t probe                                            # SHELL_ID, CAPS 0x0000000D, offsets
 & $t temp
 & $t ddr status                                       # both channels: cal SUCCESS
 & $t ddr test --ch top --end 0xFFFF --addr-test       # short first test
 & $t ddr test                                         # both channels, whole range
-& $t load-pr output_files\shell_prbs.pr_partition.rbf
+& $t ddr quiesce on
+& $t load-pr output_files\ddr4_prbs.pr_partition.rbf
+& $t ddr quiesce off
 & $t ddr test --seed 0x1234
 ```
 
 > On the lab card the JTAG load is no longer needed after a power cycle: the flash holds
-> this shell since 2026-11-19, so the card boots `1172:E003` by itself. Load `shell.sof`
-> only when you have changed the design, or to recover after a failed flash write.
+> the pre-rename build (`shell.sof`, SHA-256 `48821F89…4D7E5B`) since 2026-11-19, so the
+> card boots `1172:E003` by itself. That build has no CAPS register (CAPS reads `0`); the
+> host tool falls back to the profile's CAPS. Only the persona `.rbf` files of that same
+> build (`shell.pr_partition.rbf`, `shell_prbs.pr_partition.rbf`) match it — the `ddr4*`
+> personas of the renamed build do not. Load `ddr4.sof` when you want the renamed build,
+> and then use only its `ddr4*.pr_partition.rbf` files.
 
 Flash backup (read only):
 
@@ -273,32 +301,44 @@ runs. Read `TEMP` with `--temp-every` and stop if it climbs past about 85 °C.
 
 ## Build warnings (reviewed)
 
-Final build 2026-11-19 (`shell`, Quartus Prime Pro 25.1 patch 0.36). Every critical warning
-was checked; none is left unexplained.
+Reviewed on the pre-rename build (`shell`, 2026-11-19) and re-checked on the renamed build
+(`ddr4` / `ddr4_prbs`, fitter seed 2, 2026-11-19, Quartus Prime Pro 25.1 patch 0.36): the
+same set of critical warnings appears (`19854`, the eight EMIF speed-grade messages,
+`18326`, `17951`/`18655`), no new one, and the design MTBF is again `1e9` years. None is
+left unexplained.
 
 | Message | Where | Assessment |
 |---------|-------|------------|
 | `19854` explicit initial values in `pr_partition` | Analysis & Synthesis | The persona RTL contains no initial values (`ddr_test_csr.sv`, `ddr_test_engine.sv`, `persona_walk.sv`). Synthesis encodes the power-up state of the extracted FSM/registers inside the partition. Every persona load rewrites the whole PR region and holds it in reset until `rst_100` is released, so a power-up value cannot survive into an operating persona. **Judged harmless.** |
 | EMIF "generated for a speed grade E1 device" | Fitter (EMIF report) | The target string is `10AXF40AA`, which carries no speed-grade suffix, so the EMIF IP compares against the family default E1. With the 266.667 MHz reference clocks the only valid memory frequency is 1066.667 MHz, which is legal for every Arria 10 speed grade; the EMIF timing report for this fit passes (Core, Read Capture, Write, DQS gating all positive). Regenerating against a speed-grade part (`10AX115N4F40E3SG`) would change the device, so the warning is accepted. |
 | `19536` unsafe MTBF | Timing Analyzer | **Gone in the final build.** The earlier fit had a 0.821 ns chain; an intermediate fit put the persona `u_sync` start/abort synchroniser at 0.588 ns (22 years at the default 12.5 % toggle assumption). After the `ddr_port` capture/return registers fixed placement, the worst chain has 1.315 ns of settling time and the design MTBF is `1e9` years (the tool's reporting ceiling). If it returns, look at `u_persona|u_body|u_bot|u_sync`. |
-| `15714` LED current strength | Fitter | Fixed by `CURRENT_STRENGTH_NEW 8MA` on `led[*]` in `shell.qsf`; no longer reported. |
+| `15714` LED current strength | Fitter | Fixed by `CURRENT_STRENGTH_NEW 8MA` on `led[*]` in `ddr4.qsf`; no longer reported. |
 | `17951` / `18655` unused HSSI channels | Fitter | PCIe uses 8 of the 48 transceiver channels; the rest are unconnected on this design. Expected. |
 | `18326` CLKUSR pin `AP20` | Fitter | `clk_100` is the 100 MHz board oscillator on the dedicated CLKUSR pin. The auto-reserve is for transceiver calibration; 100 MHz is inside the 100–125 MHz range the warning names. Keep the assignment. |
 
-`shell.sdc` cuts the first synchroniser stage (`*sync_s0*`) and the quasi-static
+`ddr4.sdc` cuts the first synchroniser stage (`*sync_s0*`) and the quasi-static
 configuration buses; the remaining paths are timed normally.
+
+**Fitter seed.** `ddr4.qsf` and `ddr4_prbs.qsf` set `SEED 2`. With the default seed the
+renamed build (identity block added) missed the top EMIF user clock by 0.042 ns on two
+endpoints: hard-controller ready (`tile_ctrl_inst~hmc_reg0/1`) → `u_port_top|rd_ptr[1]`
+in `ddr_port`, 3.66 ns data delay against a 3.752 ns relationship. The RTL of `ddr_port` is
+unchanged, so this is placement variation; seed 2 gives +0.154 ns. This path has the least
+margin in the design; if a later change makes it fail again, try another seed before
+changing `ddr_port`.
 
 ## Resource usage
 
-Quartus Prime Pro 25.1, device `10AXF40AA`, final fit 2026-11-19:
+Quartus Prime Pro 25.1, device `10AXF40AA`, renamed build with the identity block, fitter
+seed 2, 2026-11-19 (pre-rename `shell` build in brackets):
 
-| Resource | `shell` (PR base, `persona_walk`) | `shell_prbs` (PR implementation) |
+| Resource | `ddr4` (PR base, `persona_walk`) | `ddr4_prbs` (PR implementation) |
 |----------|-----------------------------------|----------------------------------|
-| ALMs | 19,308 / 427,200 (5 %) | 27,040 / 427,200 (6 %) |
-| Registers | 42,709 | 41,791 |
+| ALMs | 19,375 / 427,200 (5 %) [19,308] | 27,351 / 427,200 (6 %) [27,040] |
+| Registers | 42,702 [42,709] | 41,749 [41,791] |
 | Pins | 307 / 826 (37 %) | 307 / 826 (37 %) |
-| Block memory bits | 672,514 / 55,562,240 (1 %) | 672,514 / 55,562,240 (1 %) |
-| M20K blocks | 48 / 2,713 (2 %) | 48 / 2,713 (2 %) |
+| Block memory bits | 672,770 / 55,562,240 (1 %) [672,514] | 672,770 / 55,562,240 (1 %) [672,514] |
+| M20K blocks | 49 / 2,713 (2 %) [48] | 49 / 2,713 (2 %) [48] |
 | DSP blocks | 0 / 1,518 | 0 / 1,518 |
 | HSSI RX / TX | 8 / 48 each (17 %) | 8 / 48 each (17 %) |
 | PLLs | 17 / 112 (15 %) | 17 / 112 (15 %) |
@@ -309,9 +349,24 @@ the FIFO itself is flip-flop based, not M20K.
 
 ## Bitstreams
 
-Built 2026-11-19 with Quartus Prime Pro 25.1 patch 0.36. Every `.rbf` is valid only with
-the `.sof` of the same base build (recorded here so a later rebuild does not silently
-invalidate it).
+Every `.rbf` is valid only with the `.sof` of the same base build (recorded here so a
+later rebuild does not silently invalidate it). The rename and the identity block
+regenerated the base image, so **the `shell*.rbf` personas below do not match `ddr4.sof`,
+and the `ddr4*.rbf` personas do not match the `shell.sof` image in the lab card's
+flash.**
+
+Renamed build, 2026-11-19, Quartus Prime Pro 25.1 patch 0.36, fitter seed 2 — **built, not
+tested on hardware**:
+
+| File | Purpose | SHA-256 |
+|------|---------|---------|
+| `output_files/ddr4.sof` | full base image, load over JTAG | `1F5ECBE891996714E7C0CD6D1E8993008688DCCD2DF6DA1D51C1111A3DBA8FDD` |
+| `output_files/ddr4.pr_partition.rbf` | PR bitstream, `persona_walk` | `5B269AF63E0646400F352F3746818D49D7D4B76E0E8844222B0C968BDFBEC72D` |
+| `output_files/ddr4_prbs.pr_partition.rbf` | PR bitstream, `persona_prbs` | `1DAF004F312DADB20C05E8324A3D505FBB86A6D0D324D61313FD1D73B20B1222` |
+| `output_files/ddr4_prbs.sof` | implementation build (for reference) | `643ADAFE0E41788926C0D591054A1839BEDC76A41B4B557F61D08B55409E9C27` |
+
+Pre-rename build (`05_shell`), 2026-11-19 — verified on hardware; `shell.sof` is the image
+written to the lab card's configuration flash:
 
 | File | Purpose | SHA-256 |
 |------|---------|---------|
@@ -325,11 +380,20 @@ invalidate it).
 - **Logic simulation, 2026-11-19:** `sim/run_sim.ps1` passes both modes with Questa
   2024.1 — `==== PASSED: 0 failure(s), MODE 0` (walking one + address test) and
   `==== PASSED: 0 failure(s), MODE 1` (PRBS-31). No `-suppress 7061` is needed; the
-  power-up values moved into the reset branch of `ddr_port.sv`.
-- **Timing, 2026-11-19:** both revisions — "Timing requirements were met".
-  EMIF core user clocks: base `shell` +0.172 ns (top) / +0.183 ns (bottom);
-  implementation `shell_prbs` +0.151 ns / +0.159 ns, all at the slow 900 mV 100 °C corner.
-- **Hardware, 2026-11-19:** passed end to end on the lab card — see
+  power-up values moved into the reset branch of `ddr_port.sv`. Re-run after the rename
+  with the same result. The test bench covers `ddr_port` and the persona bodies, not the
+  identity block (SHELL_ID/CAPS), which is constant read logic in `ddr4_top.sv`.
+- **Timing, renamed build (seed 2), 2026-11-19:** both revisions — "Timing requirements
+  were met". Worst setup slack: base `ddr4` +0.154 ns (top EMIF user clock; bottom
+  +0.282 ns); implementation `ddr4_prbs` +0.121 ns (bottom; top +0.154 ns). Worst hold
+  slack +0.016 ns in both. Base Fmax (slow 900 mV 100 °C): top / bottom EMIF user clock
+  283.13 / 288.68 MHz (266.667 MHz required), `clk_100` 135.03 MHz, PR/flash 50 MHz clock
+  106.16 MHz, PCIe core clock 283.29 MHz (restricted).
+- **Timing, pre-rename build, 2026-11-19:** both revisions met timing. EMIF core user
+  clocks: base `shell` +0.172 ns (top) / +0.183 ns (bottom); implementation `shell_prbs`
+  +0.151 ns / +0.159 ns, all at the slow 900 mV 100 °C corner.
+- **Hardware, 2026-11-19 (pre-rename build `shell.sof`):** passed end to end on the lab
+  card — see
   [lab-log/2026-11-19-05-shell-ddr4.md](../../lab-log/2026-11-19-05-shell-ddr4.md).
   - `info`: `1172:E003`, BAR0 `0x383FFFE00000`, Gen3 x8, shell ID `0x53480501`.
   - `ddr status`: both channels `cal SUCCESS`, user reset released.
