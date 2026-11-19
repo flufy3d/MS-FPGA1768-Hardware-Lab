@@ -5,7 +5,8 @@
  *   core        fpga1768.c (commands, dispatch), core.c (BAR0 access, profile
  *               selection, capability checks), profile.c (INI files),
  *               bar_windows.c / bar_linux.c (enumerate 1172:E003, map BAR0)
- *   modules     cap_temp.c, cap_pr.c, cap_persona.c, cap_ddr.c, cap_flash.c
+ *   modules     cap_temp.c, cap_pr.c, cap_persona.c, cap_ddr.c, cap_flash.c,
+ *               cap_i2c.c
  *   profiles    host/profiles/<project>.ini
  *
  * Modules never hard-code a BAR0 offset: they ask for it by name with reg()
@@ -79,5 +80,8 @@ int      cmd_ddr(int argc, char **argv);
 
 /* cap_flash.c */
 int      cmd_flash_dump(int argc, char **argv);
+
+/* cap_i2c.c */
+int      cmd_i2c(int argc, char **argv);
 
 #endif

@@ -20,6 +20,7 @@
  *                        BAR0 did not change, then run the persona test
  *   ddr ...              DDR4 commands ('ddr help')
  *   flash-dump FILE [MB] read the configuration flash (read-only window)
+ *   i2c ...              I2C master commands ('i2c help')
  *   selftest             offline checks (no device needed)
  */
 #include <stdio.h>
@@ -44,6 +45,10 @@ static const char *keys_ddr[] = { "regs.ddr_status", "regs.ddr_quiesce", "regs.d
                                   "ddr.user_clock_hz", "ddr.info_value", NULL };
 static const char *keys_flash[] = { "regs.flash_page", "regs.flash_win", "flash.window_bytes",
                                     "flash.size_mb", NULL };
+static const char *keys_i2c[] = { "regs.i2c_ctrl", "regs.i2c_addr", "regs.i2c_page", "regs.i2c_reg",
+                                  "regs.i2c_len", "regs.i2c_data", "regs.i2c_status", "regs.i2c_div",
+                                  "i2c.max_len", "i2c.clk_hz", "i2c.sensor_bus", "i2c.tmp411",
+                                  "i2c.lm25066", NULL };
 
 static int check_keys(const profile_t *p, const char *what, const char **keys)
 {
@@ -81,6 +86,8 @@ static int check_profile(const profile_t *p, uint32_t caps)
         bad += check_keys(p, "DDR4", keys_ddr);
     if (caps & CAP_FLASH)
         bad += check_keys(p, "FLASH", keys_flash);
+    if (caps & CAP_I2C)
+        bad += check_keys(p, "I2C", keys_i2c);
     return bad;
 }
 
@@ -99,18 +106,18 @@ static int cmd_list(void)
     }
     profile_t *all;
     int n = profile_load_all(&all);
-    printf("\n%-14s %-10s %-10s %-16s %s\n", "PROFILE", "SHELL_ID", "CAPS", "", "FILE");
+    printf("\n%-18s %-10s %-10s %-16s %s\n", "PROFILE", "SHELL_ID", "CAPS", "", "FILE");
     for (int i = 0; i < n; i++) {
         char t[64];
-        printf("%-14s 0x%08X 0x%08X %-16s %s\n", all[i].name, (unsigned)all[i].shell_id,
+        printf("%-18s 0x%08X 0x%08X %-16s %s\n", all[i].name, (unsigned)all[i].shell_id,
                (unsigned)all[i].caps, caps_text(all[i].caps, t, sizeof(t)), all[i].path);
         const char *d = profile_str(&all[i], "profile.description");
         if (d && *d)
-            printf("%-14s %s\n", "", d);
+            printf("%-18s %s\n", "", d);
     }
     if (n == 0)
         printf("(no profiles found; set FPGA1768_PROFILES to the host/profiles directory)\n");
-    printf("\n%-14s %-10s %-10s %s\n", "legacy", "-", "-",
+    printf("\n%-18s %-10s %-10s %s\n", "legacy", "-", "-",
            "built in: projects 03/04, no SHELL_ID/CAPS registers");
     free(all);
     return n > 0 ? 0 : 1;
@@ -210,8 +217,15 @@ static int cmd_probe(void)
                (unsigned)reg("flash.window_bytes"), v < 0x2000u ? "ok" : "FAIL");
         bad += v >= 0x2000u;
     }
-    if (g_caps & CAP_I2C)
-        printf("  I2C       capability bit set; this tool has no I2C module yet\n");
+    if (g_caps & CAP_I2C) {
+        v = rd(reg("regs.i2c_status"));
+        int idle = (v & 1u) == 0;
+        printf("  I2C       STATUS 0x%04X = 0x%08X  (%s, bus 1 SCL/SDA %u/%u, bus 2 %u/%u)  %s\n",
+               (unsigned)reg("regs.i2c_status"), (unsigned)v, idle ? "idle" : "busy",
+               (unsigned)((v >> 16) & 1u), (unsigned)((v >> 17) & 1u),
+               (unsigned)((v >> 18) & 1u), (unsigned)((v >> 19) & 1u), idle ? "ok" : "FAIL");
+        bad += !idle;
+    }
 
 done:
     printf("Probe:    %s\n", bad ? "FAILED" : "OK");
@@ -302,6 +316,7 @@ static void usage(void)
            "                       then run the persona test\n"
            "  ddr status|test|quiesce|peek|poke   DDR4 commands, 'ddr help'           [DDR4]\n"
            "  flash-dump FILE [MB] read the configuration flash (read-only window)      [FLASH]\n"
+           "  i2c status|scan|read|preg|sensors|speed   I2C commands, 'i2c help'     [I2C]\n"
            "  selftest             offline checks (SHA-256, profile files)\n\n"
            "--bdf selects the PCI device on Linux (default: first %04x:%04x).\n"
            "--profile forces a profile (name or .ini path) instead of matching SHELL_ID.\n"
@@ -372,6 +387,8 @@ int main(int argc, char **argv)
         rc = cmd_ddr(nargs, argv + ai);
     } else if (!strcmp(cmd, "flash-dump")) {
         rc = cmd_flash_dump(nargs, argv + ai);
+    } else if (!strcmp(cmd, "i2c")) {
+        rc = cmd_i2c(nargs, argv + ai);
     } else {
         usage();
         rc = 2;

@@ -6,7 +6,7 @@ CFLAGS  ?= -O2 -Wall -Wextra -std=c99
 
 # Core, capability modules, Linux backend. Keep in sync with build.ps1.
 SRCS = fpga1768.c core.c profile.c \
-       cap_temp.c cap_pr.c cap_persona.c cap_ddr.c cap_flash.c \
+       cap_temp.c cap_pr.c cap_persona.c cap_ddr.c cap_flash.c cap_i2c.c \
        sha256.c bar_linux.c
 HDRS = bar_access.h profile.h sha256.h tool.h
 
