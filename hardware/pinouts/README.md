@@ -9,15 +9,17 @@
 | [FPGA_Pinouts.xlsx](FPGA_Pinouts.xlsx) | original workbook: full pinout, per-interface sheets |
 | [Header_Pinouts.xlsx](Header_Pinouts.xlsx) | headers J1-J12, J5 JTAG, U32 |
 | [BOM.xlsx](BOM.xlsx) | bill of materials with notes |
-| [csv/fpga-full.csv](csv/fpga-full.csv) | every FPGA pin, one row per pin |
-| [csv/ddr4-top.csv](csv/ddr4-top.csv) | DDR4 channel "top" |
-| [csv/ddr4-bottom.csv](csv/ddr4-bottom.csv) | DDR4 channel "bottom" |
-| [csv/pcie1-edge.csv](csv/pcie1-edge.csv) | PCIe #1 lanes → J1 pins |
-| [csv/pcie2-edge.csv](csv/pcie2-edge.csv) | PCIe #2 lanes → J1 pins |
-| [csv/qsfp.csv](csv/qsfp.csv) | QSFP cage ↔ retimer ↔ FPGA |
-| [csv/i2c.csv](csv/i2c.csv) | three I2C buses with device addresses |
-| [csv/headers.csv](csv/headers.csv) | header pinouts |
-| [csv/bom.csv](csv/bom.csv) | BOM |
+| [csv/fpga_0_Full_FPGA_Pinout.csv](csv/fpga_0_Full_FPGA_Pinout.csv) | every FPGA pin, one row per pin |
+| [csv/fpga_1_DDR4_Interface_1_Top_Pinout.csv](csv/fpga_1_DDR4_Interface_1_Top_Pinout.csv) | DDR4 channel "top" (U7-U11) |
+| [csv/fpga_2_DDR4_Interface_2_Bot_Pinout.csv](csv/fpga_2_DDR4_Interface_2_Bot_Pinout.csv) | DDR4 channel "bottom" (U2-U6) |
+| [csv/fpga_3_J1_PCIe1_8x_PCIe_Board.csv](csv/fpga_3_J1_PCIe1_8x_PCIe_Board.csv) | PCIe #1 lanes → J1 pins (PCIe board) |
+| [csv/fpga_4_J1_PCIe2_8x_PCIe_Board.csv](csv/fpga_4_J1_PCIe2_8x_PCIe_Board.csv) | PCIe #2 lanes → J1 pins (PCIe board) |
+| [csv/fpga_5_J1_PCIe1_8x_OCP_Board.csv](csv/fpga_5_J1_PCIe1_8x_OCP_Board.csv) | PCIe #1 on the OCP board |
+| [csv/fpga_6_J8_PCIe2_8x_OCP_Board.csv](csv/fpga_6_J8_PCIe2_8x_OCP_Board.csv) | PCIe #2 on the OCP board (J8) |
+| [csv/fpga_7_QSFP.csv](csv/fpga_7_QSFP.csv) | QSFP cage ↔ retimer ↔ FPGA |
+| [csv/fpga_8_I2C.csv](csv/fpga_8_I2C.csv) | three I2C buses with device addresses |
+| [csv/header_0_Header_pinouts.csv](csv/header_0_Header_pinouts.csv) | header pinouts |
+| [csv/bom_0_BOM.csv](csv/bom_0_BOM.csv) | BOM |
 
 ## Quick reference
 

@@ -8,7 +8,7 @@ except the PCIe fanout buffer (straps only).
 
 | Ref | Frequency | FPGA pin | Loads | Notes |
 |-----|-----------|----------|-------|-------|
-| Y3 | 266.667 MHz | `AG5` / `AG6` (LVDS) | DDR4 channel B ("bottom") PLL reference | 2400 MT/s capable; designs use it as EMIF refclk |
+| Y3 | 266.667 MHz | `AG5` / `AG6` (LVDS) | DDR4 channel B ("bottom") PLL reference | EMIF refclk; 266.667 × 4 = 1066.667 MHz → DDR4-2133, the only memory frequency the EMIF IP offers with it (verified with Quartus 25.1, 2026-11-19) |
 | Y4 | 266.667 MHz | `J3` / `K3` (LVDS) | DDR4 channel A ("top") PLL reference | |
 | Y5 | 644.53125 MHz | `U29` / `U28` (LVDS) | QSFP+ / retimer reference | 25.78 Gb/s line rate × 4 lanes = 50G (64b/66b) |
 | Y6 | 644.53125 MHz | `E29` / `E28` (LVDS) | FPGA ↔ Mellanox XCVR reference | **156.25 MHz on the OCP variant** |

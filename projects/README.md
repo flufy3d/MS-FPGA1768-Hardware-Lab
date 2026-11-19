@@ -9,6 +9,7 @@ Quartus projects maintained in this repository. Each project is self-contained: 
 | [02_pcie_pio](02_pcie_pio/) | Gen2 x8 PCIe endpoint with a BAR0 compute register (`A + B`) | verified on hardware (2026-11-18): BAR0 assigned, `A + B` test passed |
 | [03_pcie_gen3](03_pcie_gen3/) | Gen3 x8 PCIe endpoint (64-bit BAR0), `A + B` registers plus a die temperature register | sources verified on hardware (2026-11-18); renamed project not yet compiled or re-tested |
 | [04_pcie_hot_update](04_pcie_hot_update/) | Gen3 x8 endpoint whose compute logic (`A + B` / `A − B` persona) is replaced over PCIe by partial reconfiguration, without JTAG and without dropping the link | verified on hardware (2026-11-18): persona `A + B` → `A − B` → `A + B` loaded over PCIe in ~8 s each, link Gen3 x8 and BAR0 unchanged |
+| [05_shell](05_shell/) | Reusable static region: Gen3 x8 PCIe, PR controller, both DDR4 channels (DDR4-2133, 72 bit), read-only flash window; DDR4 memory tests (walking one + address test, PRBS-31) as PR personas | built, not tested on hardware (2026-11-19) |
 
 ## Creating a new project
 
