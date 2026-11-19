@@ -88,7 +88,7 @@ One INI file per project, named after the project directory:
 | Profile | Project | SHELL_ID | CAPS |
 |---------|---------|----------|------|
 | [`profiles/05_ddr4.ini`](profiles/05_ddr4.ini) | [projects/05_ddr4](../projects/05_ddr4/) | `0x53480501` | `0x0D` DDR4, PR, flash window |
-| [`profiles/06_i2c_telemetry.ini`](profiles/06_i2c_telemetry.ini) | [projects/06_i2c_telemetry](../projects/06_i2c_telemetry/) | `0x49323036` | `0x02` I2C |
+| [`profiles/06_i2c_telemetry.ini`](profiles/06_i2c_telemetry.ini) | [projects/06_i2c_telemetry](../projects/06_i2c_telemetry/) | `0x49323036` | `0x06` I2C, PR |
 
 ```ini
 [profile]
