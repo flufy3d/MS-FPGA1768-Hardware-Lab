@@ -91,7 +91,8 @@ module bar0_regs #(
     localparam [5:0] W_DATA0 = 6'h1D;   // 0x74
     localparam [5:0] W_DATA6 = 6'h23;   // 0x8C
     wire       is_data = (word >= W_DATA0) && (word <= W_DATA6);
-    wire [2:0] dword   = word - W_DATA0;  // 0..6
+    wire [5:0] dword_w = word - W_DATA0;
+    wire [2:0] dword   = dword_w[2:0];    // 0..6 when is_data
 
     integer i;
 

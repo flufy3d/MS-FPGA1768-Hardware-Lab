@@ -125,6 +125,17 @@ set_location_assignment PIN_J23 -to i2c2_scl
 set_instance_assignment -name IO_STANDARD "1.8 V" -to i2c2_sda
 set_instance_assignment -name IO_STANDARD "1.8 V" -to i2c2_scl
 
+# Drive only matters for pulling a line low (open drain). 8 mA and slow slew,
+# as for the LEDs of project 05; I2C edges are set by the pull-ups.
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to i2c1_sda
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to i2c1_scl
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to i2c2_sda
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to i2c2_scl
+set_instance_assignment -name SLEW_RATE 0 -to i2c1_sda
+set_instance_assignment -name SLEW_RATE 0 -to i2c1_scl
+set_instance_assignment -name SLEW_RATE 0 -to i2c2_sda
+set_instance_assignment -name SLEW_RATE 0 -to i2c2_scl
+
 # Leave everything else alone
 set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
 set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-STATED"
