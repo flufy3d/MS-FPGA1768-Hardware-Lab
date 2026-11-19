@@ -20,7 +20,7 @@ PCIe link stay up.
 | DDR4 | 2 × EMIF, DDR4-2133 (1066.667 MHz), 72 bit, ECC off, hard controller, quarter rate (user clock 266.667 MHz, 576-bit words) |
 | Flash | ASMI Parallel II, **read only** (write strobe tied low in RTL) |
 | Configuration | volatile `.sof` over JTAG; personas over PCIe; the configuration flash is not written |
-| Status | **built, not tested on hardware** (2026-11-19) |
+| Status | **verified on hardware** (2026-11-19): Gen3 x8, both DDR4 channels calibrated, full 2304 MiB per channel passes walking one and PRBS-31, persona swaps over PCIe. Needs airflow — see [Thermal warning](#thermal-warning) |
 
 ## Register map (BAR0)
 
@@ -251,14 +251,21 @@ Flash backup (read only):
 | `ddr test`: channel not ready | not calibrated, or the EMIF user reset is still asserted |
 | `load-pr`: DDR ports did not quiesce | a persona keeps reads outstanding (hang in the EMIF); reload the `.sof` |
 | errors in one lane only | that DQ line / device; the lane mask points at it |
-| card disappears 20–40 min after power-on | overheating (no fan), see project 03 |
+| card disappears 20–40 min after power-on | overheating (no fan), see [Thermal warning](#thermal-warning) |
+| `quartus_pgm` hangs with no progress, then `jtagconfig` says `Server error` | stale `jtagserver` from a killed session; kill the process (needs admin/SYSTEM) and retry |
 
 ## Thermal warning
 
-No fan on the lab card (2026-11-19). The DDR traffic adds power (estimate +5–9 W for both
-channels at full load, `hypothesis`; FPGA side from the Quartus Power Analyzer once
-measured). Keep sessions short, read `TEMP` throughout, and do not leave the card powered
-after a test.
+Airflow is mandatory. Measured on 2026-11-19:
+
+- **No fan:** the shell read 130.2 °C about 5 minutes after configuration and the card
+  lost power 78 s later. No DDR test ran in that attempt.
+- **Small fan over the heatsink:** 47.7 °C after the warm reboot, 48.3 °C flat over five
+  minutes, 48.3–49.0 °C during the DDR tests, the persona load and two 128 MB flash dumps.
+
+The Quartus Power Analyzer puts the design at 15.0 W (I/O 6.20 W, device static 5.33 W,
+transceivers 2.47 W, core dynamic 1.01 W), so most of the heat is there even when no test
+runs. Read `TEMP` with `--temp-every` and stop if it climbs past about 85 °C.
 
 ## Build warnings (reviewed)
 
@@ -318,8 +325,24 @@ invalidate it).
 - **Timing, 2026-11-19:** both revisions — "Timing requirements were met".
   EMIF core user clocks: base `shell` +0.172 ns (top) / +0.183 ns (bottom);
   implementation `shell_prbs` +0.151 ns / +0.159 ns, all at the slow 900 mV 100 °C corner.
-- **Hardware:** not tested. Status remains **built, not tested on hardware**; the
-  bring-up procedure above is the next step.
+- **Hardware, 2026-11-19:** passed end to end on the lab card — see
+  [lab-log/2026-11-19-05-shell-ddr4.md](../../lab-log/2026-11-19-05-shell-ddr4.md).
+  - `info`: `1172:E003`, BAR0 `0x383FFFE00000`, Gen3 x8, shell ID `0x53480501`.
+  - `ddr status`: both channels `cal SUCCESS`, user reset released.
+  - Walking one, top: 4.5 MiB with address test, 0 errors; inverted 36 MiB, 0 errors.
+  - Walking one, full both channels: 33 554 458 words (2304.0 MiB) each, 0 errors,
+    18.2 GB/s per channel.
+  - `load-pr` of `shell_prbs`: status 5 SUCCESS in 30.5 s (1.60 MB/s), persona
+    `0x0101` → `0x0102`, BAR0 and the Gen3 x8 link unchanged.
+  - PRBS-31, full both channels, seed `0x1234`: 0 errors, 18.2 GB/s.
+  - Two 128 MB `flash-dump` runs byte-identical
+    (`4C727C31…9326C`), 49.8 % of the flash erased.
+  - Die temperature held at 47.7–49.0 °C with a small fan; without one the card read
+    130.2 °C and lost power 5 minutes after the shell was configured.
+
+  > `fpga1768 load-pr` returns exit code 4 with `Unknown persona ID 0x0102` after a
+  > successful load: that check is the project 03/04 `A+B` / `A-B` persona test and does
+  > not recognise the project 05 DDR personas. Use `ddr status` / `ddr test` instead.
 
 ## Attribution
 

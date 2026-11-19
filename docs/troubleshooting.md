@@ -200,6 +200,20 @@ the JTAG Server alone was **not** enough, and neither was killing the client.
 Get the instance id from `Get-PnpDevice -PresentOnly | Where-Object InstanceId -like
 '*VID_0403*'`; it is stable for a given USB port.
 
+**2026-11-19, stuck server after a killed session.** A `quartus_pgm` that had run
+24 minutes with 11 s of CPU was killed; afterwards every call failed with
+
+```
+Error when scanning hardware - Server error
+```
+
+and a retried `quartus_pgm` hung again. `Stop-Process -Name jtagserver` failed with
+`Access is denied` because the server runs as SYSTEM. Killing that process from an
+elevated or SYSTEM context (`taskkill /F /PID <pid>`) cleared the state; `jtagconfig` then
+read `02E060DD` and the retried load finished in 8:16. No FT232H restart and no power
+cycle were needed. Check the program's CPU time to tell this from a slow but healthy run:
+11 s after 24 minutes means it never started.
+
 ## Programming succeeds but the design does nothing
 
 - Wrong clock pin: `clk_u59` is `AP20`; a design built for another board will not blink.

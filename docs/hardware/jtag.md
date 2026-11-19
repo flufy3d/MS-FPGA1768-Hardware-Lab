@@ -1,9 +1,9 @@
 # JTAG and the on-board USB programmer
 
-> Status: **working** after a full VBUS power cycle (IDCODE `0x02E060DD` read 2026-11-17).
-> The FT232H can latch up after an aborted Quartus programmer session and then needs a
-> full power cycle to recover — see the note at the end.
-> Last verified: 2026-11-17
+> Status: **working** after a full VBUS power cycle (IDCODE `0x02E060DD` read 2026-11-17,
+> re-read 2026-11-19). The FT232H can latch up after an aborted Quartus programmer session
+> and then needs a full power cycle to recover — see the note at the end.
+> Last verified: 2026-11-19
 
 ## Two ways to reach the FPGA's JTAG port
 
@@ -81,6 +81,22 @@ a latched state, not by a locked or damaged TAP.
 > **Recovery rule.** If JTAG reads `0xFFFFFFFF` after a programmer session (especially one
 > that crashed), power the whole machine off at the PSU and back on. `FT_CyclePort`
 > (`scripts/ftdi_cycle.py`) re-enumerates the FT232H but does **not** clear this latch.
+
+## Availability of the FT232H (2026-11-19)
+
+- The FT232H is powered from the card. When the card lost power on 2026-11-19 (thermal
+  shutdown) the USB device disappeared at the same moment as the BAR0 registers started
+  reading `0xFFFFFFFF`, so "FT232H absent" and "card unpowered" are the same observation.
+- After an AC power cycle the device is back within a few minutes and stays present while
+  a lab bitstream owns the FPGA.
+- **Reported, not proven:** with the factory image running, the FT232H was present 4
+  minutes after boot, but absent 15 minutes after boot while the card was still powered and
+  enumerated on PCIe (`1414:B204`, Gen3 x8). That suggests the factory image disables the
+  programmer. Test it with one USB check per minute before concluding; if true, program
+  the FPGA within the first minutes after a cold boot.
+- A killed programmer session leaves `jtagserver` wedged and every later run fails with
+  `Error when scanning hardware - Server error`; see
+  [troubleshooting.md](../troubleshooting.md).
 
 ## Reconfiguration behaviour
 

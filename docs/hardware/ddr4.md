@@ -1,10 +1,12 @@
 # DDR4 memory
 
-> Status: reported (pinout, calibration by prior art); I/O banks and EMIF clocking verified
-> with Quartus on 2026-11-18/19 (no hardware test yet in this lab)
+> Status: verified — both channels calibrated and passed full-capacity traffic tests on
+> this card on 2026-11-19. Pinout and EMIF clocking were verified with Quartus on
+> 2026-11-18/19.
 > Source: [DDR4 pinout CSVs](../../hardware/pinouts/csv/), [BOM](../../hardware/pinouts/csv/bom_0_BOM.csv),
-> `H5AN4G6NAFR-UHC` datasheet, community DDR4_Dual project, Quartus Prime Pro 25.1
-> Last verified: 2026-11-19 (tool checks only)
+> `H5AN4G6NAFR-UHC` datasheet, community DDR4_Dual project, Quartus Prime Pro 25.1, and
+> [lab-log/2026-11-19-05-shell-ddr4.md](../../lab-log/2026-11-19-05-shell-ddr4.md)
+> Last verified: 2026-11-19 (hardware, `projects/05_shell`)
 
 ## Topology
 
@@ -112,4 +114,8 @@ Full machine-readable pinouts (the CSVs agree pin for pin with the DDR4_Dual `.q
   PCIe variant; it did not run a traffic test.
 - The OpenCL BSP uses both channels as one 4 GiB interleaved global memory (two 2 GiB
   windows at `0x0` and `0x1_0000_0000`).
-- In this lab: not yet tested on hardware (see `projects/05_shell` status).
+- In this lab, 2026-11-19 (`projects/05_shell`, PCB `M1003380-005`): both channels
+  `cal SUCCESS` at the first read after boot, and the full 2304 MiB of each channel passed
+  a walking-one test with the address test enabled and a PRBS-31 test, 0 error words,
+  18.2 GB/s per channel. The persona was replaced over PCIe in between without losing
+  calibration. See [lab-log/2026-11-19-05-shell-ddr4.md](../../lab-log/2026-11-19-05-shell-ddr4.md).

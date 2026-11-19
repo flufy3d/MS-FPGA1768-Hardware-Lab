@@ -73,6 +73,7 @@ projects/05_shell/ip/shell_sys/*/
 projects/05_shell/*.log
 projects/05_shell/gen.err
 projects/05_shell/*_summary.csv
+*_early_pwr.csv
 *.qsys.legacy
 
 # Quartus temporary clearbox files
