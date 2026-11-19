@@ -6,7 +6,7 @@
  *   bar_windows.c  the KMDF test driver in projects/02_pcie_pio/driver (IOCTLs)
  *
  * Only aligned 32-bit accesses are supported; that is all the BAR0 register
- * banks of projects 02-04 need.
+ * banks of the lab's projects need.
  */
 #ifndef BAR_ACCESS_H
 #define BAR_ACCESS_H
@@ -48,5 +48,6 @@ int  bar_write32(bar_t *bar, uint32_t offset, uint32_t value);
 double plat_now(void);                         /* monotonic seconds */
 void   plat_sleep_ms(unsigned ms);
 void   plat_timestamp(char *buf, unsigned len); /* local time, ISO 8601 */
+int    plat_exe_dir(char *buf, unsigned len);   /* directory of this executable; 0 on success */
 
 #endif

@@ -232,3 +232,16 @@ void plat_timestamp(char *buf, unsigned len)
     localtime_r(&t, &tm);
     strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
 }
+
+int plat_exe_dir(char *buf, unsigned len)
+{
+    ssize_t n = readlink("/proc/self/exe", buf, (size_t)len - 1);
+    if (n <= 0)
+        return -1;
+    buf[n] = '\0';
+    char *slash = strrchr(buf, '/');
+    if (!slash)
+        return -1;
+    *slash = '\0';
+    return 0;
+}

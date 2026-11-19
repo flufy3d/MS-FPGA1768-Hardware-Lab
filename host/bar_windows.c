@@ -189,3 +189,16 @@ void plat_timestamp(char *buf, unsigned len)
     snprintf(buf, len, "%04u-%02u-%02uT%02u:%02u:%02u",
              st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 }
+
+int plat_exe_dir(char *buf, unsigned len)
+{
+    DWORD n = GetModuleFileNameA(NULL, buf, len);
+    if (n == 0 || n >= len)
+        return -1;
+    while (n > 0 && buf[n - 1] != '\\' && buf[n - 1] != '/')
+        n--;
+    if (n == 0)
+        return -1;
+    buf[n - 1] = '\0';
+    return 0;
+}

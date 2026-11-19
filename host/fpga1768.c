@@ -1,13 +1,16 @@
 /*
  * fpga1768.c — shared host tool for the lab's PCIe designs (projects 03 and up)
  *
- * BAR0 register access, die temperature, and loading of persona PR bitstreams
- * over PCIe (projects/04_pcie_hot_update). Runs on Linux (sysfs mmap,
- * bar_linux.c) and Windows (KMDF test driver, bar_windows.c). See README.md in
- * this directory and the README of each project for the register maps.
+ * Core: finds the lab device (1172:E003), maps BAR0, reads SHELL_ID at
+ * BAR0 + 0x00 and selects the matching profile (host/profiles/<project>.ini),
+ * whose CAPS bits decide which capability modules may run. Runs on Linux
+ * (sysfs mmap, bar_linux.c) and Windows (KMDF test driver, bar_windows.c).
+ * See README.md in this directory and the README of each project.
  *
- *   fpga1768 [--bdf BDF] <command> [args]
+ *   fpga1768 [--bdf BDF] [--profile NAME] <command> [args]
  *
+ *   list                 list the profiles found (no device needed)
+ *   probe                check SHELL_ID, CAPS and the profile's offsets (read only)
  *   info                 device, link, BAR0 and all registers
  *   read OFF             read 32 bits at BAR0 + OFF (hex)
  *   write OFF VAL        write 32 bits at BAR0 + OFF (hex)
@@ -15,134 +18,204 @@
  *   persona              write A, B and check SUM against the loaded persona
  *   load-pr FILE         load a persona .rbf over PCIe, check that link and
  *                        BAR0 did not change, then run the persona test
+ *   ddr ...              DDR4 commands ('ddr help')
+ *   flash-dump FILE [MB] read the configuration flash (read-only window)
  *   selftest             offline checks (no device needed)
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "bar_access.h"
 #include "sha256.h"
 #include "tool.h"
 
-/* Project 03/04 registers (A + B persona). */
-#define REG_A        0x00u
-#define REG_B        0x10u
-#define REG_SUM      0x20u
+/* ----------------------------------------------------- profile checks */
 
-#define PR_VERSION   0xAA500003u  /* alt_pr CSR_VERSION, Quartus Prime Pro 25.1 */
+static const char *keys_core[] = { "regs.shell_id", "regs.caps", "regs.caps2", "regs.id",
+                                   "regs.counter", "regs.temp", NULL };
+static const char *keys_pr[] = { "regs.persona", "regs.pr_data", "regs.pr_csr",
+                                 "regs.pr_version", "regs.pr_id", "pr.version", NULL };
+static const char *keys_ddr[] = { "regs.ddr_status", "regs.ddr_quiesce", "regs.ddr_mbox_ctrl",
+                                  "regs.ddr_mbox_addr", "regs.ddr_mbox_go", "regs.ddr_mbox_status",
+                                  "regs.ddr_info", "regs.ddr_mbox_wdata", "regs.ddr_mbox_rdata",
+                                  "regs.persona_win", "ddr.word_bytes", "ddr.last_word",
+                                  "ddr.user_clock_hz", "ddr.info_value", NULL };
+static const char *keys_flash[] = { "regs.flash_page", "regs.flash_win", "flash.window_bytes",
+                                    "flash.size_mb", NULL };
 
-#define TEMP_NOTE_C  95.0         /* readings at or above this are flagged, nothing else */
-
-bar_t *g_bar;
-
-uint32_t rd(uint32_t off)
+static int check_keys(const profile_t *p, const char *what, const char **keys)
 {
-    uint32_t v = 0;
-    if (bar_read32(g_bar, off, &v) != 0)
-        exit(5);
-    return v;
-}
-
-void wr(uint32_t off, uint32_t v)
-{
-    if (bar_write32(g_bar, off, v) != 0)
-        exit(5);
-}
-
-int is_shell(void)
-{
-    return rd(REG_SHELL_ID) == SHELL_ID_V1;
-}
-
-static double temp_c(uint32_t reg)
-{
-    /* [9:0] latched code; vendor formula for the Arria 10 sensor. */
-    return (double)(reg & 0x3FFu) * 693.0 / 1024.0 - 265.0;
-}
-
-double temp_now(void)
-{
-    return temp_c(rd(REG_TEMP));
-}
-
-void print_temp_line(void)
-{
-    char ts[32];
-    uint32_t t = rd(REG_TEMP);
-    double c = temp_c(t);
-    plat_timestamp(ts, sizeof(ts));
-    printf("%s TEMP reg=0x%08X conv=%u code=%u degC=%.1f%s\n", ts, (unsigned)t,
-           (unsigned)(t >> 28), (unsigned)(t & 0x3FFu), c,
-           c >= TEMP_NOTE_C ? "  (>= 95 degC, recorded)" : "");
-    fflush(stdout);
-}
-
-static const char *pr_status_name(unsigned s)
-{
-    static const char *n[8] = { "idle", "PR_ERROR", "CRC_ERROR", "INCOMPATIBLE_BITSTREAM",
-                                "IN_PROGRESS", "SUCCESS", "?", "?" };
-    return n[s & 7u];
-}
-
-static unsigned pr_status(void)
-{
-    return (rd(REG_PR_CSR) >> 2) & 7u;
-}
-
-static int has_pr_controller(void)
-{
-    return rd(REG_PR_VER) == PR_VERSION;
-}
-
-static void print_link(const bar_info_t *i)
-{
-    printf("Device:  %s\n", i->location);
-    printf("IDs:     %04X:%04X\n", (unsigned)i->vendor_id, (unsigned)i->device_id);
-    printf("BAR0:    0x%llX length 0x%X\n", (unsigned long long)i->bar_phys,
-           (unsigned)i->bar_length);
-    if (i->link_speed > 0)
-        printf("Link:    Gen%d x%d\n", i->link_speed, i->link_width);
-    else
-        printf("Link:    unknown\n");
-}
-
-static void print_persona(void)
-{
-    uint32_t p = rd(REG_PERSONA), csr = rd(REG_PR_CSR);
-    printf("PERSONA: 0x%08X (id 0x%04X, freeze %u, reset %u, PR clock locked %u)\n",
-           (unsigned)p, (unsigned)(p & 0xFFFFu), (unsigned)((p >> 16) & 1u),
-           (unsigned)((p >> 17) & 1u), (unsigned)((p >> 18) & 1u));
-    printf("PR CSR:  0x%08X (status %u %s), version 0x%08X, bitstream ID 0x%08X\n",
-           (unsigned)csr, (unsigned)((csr >> 2) & 7u), pr_status_name((csr >> 2) & 7u),
-           (unsigned)rd(REG_PR_VER), (unsigned)rd(REG_PR_ID));
-}
-
-int require_id(void)
-{
-    uint32_t id = rd(REG_ID);
-    if (id != ID_VALUE) {
-        fprintf(stderr, "ID register 0x%08X, expected 0x%08X: wrong bitstream loaded.\n",
-                (unsigned)id, (unsigned)ID_VALUE);
-        return -1;
+    int bad = 0;
+    for (int i = 0; keys[i]; i++) {
+        uint32_t v;
+        if (profile_u32(p, keys[i], &v) != 0) {
+            printf("  %-8s missing key %s\n", what, keys[i]);
+            bad++;
+        }
     }
-    return 0;
+    return bad;
 }
 
-static int require_pr(void)
+/* Keys required by the contract and by every capability in caps. */
+static int check_profile(const profile_t *p, uint32_t caps)
 {
-    if (require_id() != 0)
-        return -1;
-    if (!has_pr_controller()) {
-        fprintf(stderr, "No PR controller at BAR0 + 0x108 (expected version 0x%08X).\n"
-                        "Is projects/04_pcie_hot_update loaded?\n", (unsigned)PR_VERSION);
-        return -1;
+    int bad = check_keys(p, "core", keys_core);
+    uint32_t v;
+    if (profile_u32(p, "regs.shell_id", &v) == 0 && v != CONTRACT_SHELL_ID) {
+        printf("  core     regs.shell_id must be 0x%02X (minimal contract)\n", CONTRACT_SHELL_ID);
+        bad++;
     }
-    if (!((rd(REG_PERSONA) >> 18) & 1u)) {
-        fprintf(stderr, "PR controller clock PLL not locked (PERSONA bit 18 = 0).\n");
-        return -1;
+    if (profile_u32(p, "regs.caps", &v) == 0 && v != CONTRACT_CAPS) {
+        printf("  core     regs.caps must be 0x%02X (minimal contract)\n", CONTRACT_CAPS);
+        bad++;
     }
-    return 0;
+    if (profile_u32(p, "regs.caps2", &v) == 0 && v != CONTRACT_CAPS2) {
+        printf("  core     regs.caps2 must be 0x%02X (minimal contract)\n", CONTRACT_CAPS2);
+        bad++;
+    }
+    if (caps & CAP_PR)
+        bad += check_keys(p, "PR", keys_pr);
+    if (caps & CAP_DDR4)
+        bad += check_keys(p, "DDR4", keys_ddr);
+    if (caps & CAP_FLASH)
+        bad += check_keys(p, "FLASH", keys_flash);
+    return bad;
+}
+
+/* ---------------------------------------------------------------- list */
+
+static int cmd_list(void)
+{
+    char dirs[8][PROFILE_PATH_LEN];
+    int nd = profile_dirs(dirs, 8);
+    printf("Profile search path (FPGA1768_PROFILES, <exe>/profiles, <exe>/../profiles, ./profiles, "
+           "./host/profiles):\n");
+    for (int i = 0; i < nd; i++) {
+        struct stat st;
+        int ok = stat(dirs[i], &st) == 0 && S_ISDIR(st.st_mode);
+        printf("  %-7s %s\n", ok ? "found" : "-", dirs[i]);
+    }
+    profile_t *all;
+    int n = profile_load_all(&all);
+    printf("\n%-14s %-10s %-10s %-16s %s\n", "PROFILE", "SHELL_ID", "CAPS", "", "FILE");
+    for (int i = 0; i < n; i++) {
+        char t[64];
+        printf("%-14s 0x%08X 0x%08X %-16s %s\n", all[i].name, (unsigned)all[i].shell_id,
+               (unsigned)all[i].caps, caps_text(all[i].caps, t, sizeof(t)), all[i].path);
+        const char *d = profile_str(&all[i], "profile.description");
+        if (d && *d)
+            printf("%-14s %s\n", "", d);
+    }
+    if (n == 0)
+        printf("(no profiles found; set FPGA1768_PROFILES to the host/profiles directory)\n");
+    printf("\n%-14s %-10s %-10s %s\n", "legacy", "-", "-",
+           "built in: projects 03/04, no SHELL_ID/CAPS registers");
+    free(all);
+    return n > 0 ? 0 : 1;
+}
+
+/* --------------------------------------------------------------- probe */
+
+static int cmd_probe(void)
+{
+    bar_info_t i;
+    if (bar_get_info(g_bar, &i) != 0)
+        return 5;
+    print_link(&i);
+
+    uint32_t id = rd(CONTRACT_SHELL_ID);
+    printf("SHELL_ID: 0x%08X (BAR0 + 0x%02X)\n", (unsigned)id, CONTRACT_SHELL_ID);
+    if (g_legacy) {
+        printf("Profile:  none matches; built-in legacy profile (projects 03/04)\n");
+        printf("ID:       0x%08X%s\n", (unsigned)rd(reg("regs.id")),
+               rd(reg("regs.id")) == ID_VALUE ? "" : "  (unexpected)");
+        printf("Probe:    no profile for this design (see 'fpga1768 list').\n");
+        return 3;
+    }
+    printf("Profile:  %s (%s)\n", g_prof->name, g_prof->path);
+    const char *proj = profile_str(g_prof, "profile.project");
+    if (proj)
+        printf("Project:  %s\n", proj);
+
+    int bad = 0;
+    char t1[64], t2[64];
+    uint32_t hw = rd(CONTRACT_CAPS), hw2 = rd(CONTRACT_CAPS2);
+    if (g_prof->shell_id != id) {
+        printf("  FAIL     profile expects SHELL_ID 0x%08X\n", (unsigned)g_prof->shell_id);
+        bad++;
+    }
+    printf("CAPS:     0x%08X (%s), profile 0x%08X (%s)", (unsigned)hw, caps_text(hw, t1, sizeof(t1)),
+           (unsigned)g_prof->caps, caps_text(g_prof->caps, t2, sizeof(t2)));
+    if (hw == g_prof->caps) {
+        printf("  ok\n");
+    } else if (hw == 0) {
+        printf("  NOTE: reads 0, bitstream predates the CAPS register; using the profile\n");
+    } else {
+        printf("  MISMATCH\n");
+        bad++;
+    }
+    printf("CAPS2:    0x%08X, profile 0x%08X  %s\n", (unsigned)hw2, (unsigned)g_prof->caps2,
+           hw2 == g_prof->caps2 ? "ok" : "MISMATCH");
+    if (hw2 != g_prof->caps2)
+        bad++;
+
+    printf("Profile keys:\n");
+    int kb = check_profile(g_prof, g_caps | g_prof->caps);
+    printf("  %s\n", kb ? "incomplete" : "complete for the core and every capability in CAPS");
+    bad += kb;
+    if (kb)
+        goto done;
+
+    printf("Registers (read only):\n");
+    uint32_t v = rd(reg("regs.id"));
+    printf("  ID        0x%04X = 0x%08X  %s\n", (unsigned)reg("regs.id"), (unsigned)v,
+           v == ID_VALUE ? "ok" : "FAIL");
+    bad += v != ID_VALUE;
+    uint32_t c1 = rd(reg("regs.counter")), c2 = rd(reg("regs.counter"));
+    printf("  COUNTER   0x%04X = 0x%08X then 0x%08X  %s\n", (unsigned)reg("regs.counter"),
+           (unsigned)c1, (unsigned)c2, c1 != c2 ? "ok (changing)" : "FAIL (stuck)");
+    bad += c1 == c2;
+    double tc = temp_now();
+    int tok = tc > -40.0 && tc < 125.0;
+    printf("  TEMP      0x%04X = %.1f degC  %s\n", (unsigned)reg("regs.temp"), tc,
+           tok ? "ok" : "FAIL (implausible)");
+    bad += !tok;
+    if (g_caps & CAP_PR) {
+        v = rd(reg("regs.pr_version"));
+        printf("  PR        0x%04X = 0x%08X  %s\n", (unsigned)reg("regs.pr_version"), (unsigned)v,
+               v == reg("pr.version") ? "ok" : "FAIL");
+        bad += v != reg("pr.version");
+        v = rd(reg("regs.persona"));
+        printf("  PERSONA   0x%04X = 0x%08X  (id 0x%04X, PR clock locked %u)  %s\n",
+               (unsigned)reg("regs.persona"), (unsigned)v, (unsigned)(v & 0xFFFFu),
+               (unsigned)((v >> 18) & 1u), (v >> 18) & 1u ? "ok" : "FAIL");
+        bad += !((v >> 18) & 1u);
+    }
+    if (g_caps & CAP_DDR4) {
+        v = rd(reg("regs.ddr_info"));
+        printf("  DDR_INFO  0x%04X = 0x%08X  %s\n", (unsigned)reg("regs.ddr_info"), (unsigned)v,
+               v == reg("ddr.info_value") ? "ok" : "FAIL");
+        bad += v != reg("ddr.info_value");
+        v = rd(reg("regs.ddr_status"));
+        printf("  DDR_STAT  0x%04X = 0x%08X  (top cal %s, bottom cal %s)\n",
+               (unsigned)reg("regs.ddr_status"), (unsigned)v, (v & 1u) ? "SUCCESS" : "-",
+               (v & 0x100u) ? "SUCCESS" : "-");
+    }
+    if (g_caps & CAP_FLASH) {
+        v = rd(reg("regs.flash_page"));
+        printf("  FLASH     page register 0x%04X = 0x%08X, window 0x%04X (%u bytes)  %s\n",
+               (unsigned)reg("regs.flash_page"), (unsigned)v, (unsigned)reg("regs.flash_win"),
+               (unsigned)reg("flash.window_bytes"), v < 0x2000u ? "ok" : "FAIL");
+        bad += v >= 0x2000u;
+    }
+    if (g_caps & CAP_I2C)
+        printf("  I2C       capability bit set; this tool has no I2C module yet\n");
+
+done:
+    printf("Probe:    %s\n", bad ? "FAILED" : "OK");
+    return bad ? 3 : 0;
 }
 
 /* ---------------------------------------------------------------- info */
@@ -153,12 +226,21 @@ static int cmd_info(void)
     if (bar_get_info(g_bar, &i) != 0)
         return 5;
     print_link(&i);
-    uint32_t c1 = rd(REG_COUNTER), c2 = rd(REG_COUNTER);
-    printf("ID:      0x%08X%s\n", (unsigned)rd(REG_ID),
-           rd(REG_ID) == ID_VALUE ? "" : "  (unexpected)");
-    printf("A:       0x%08X\n", (unsigned)rd(REG_A));
-    printf("B:       0x%08X\n", (unsigned)rd(REG_B));
-    printf("SUM:     0x%08X\n", (unsigned)rd(REG_SUM));
+    if (!g_legacy) {
+        char t[64];
+        printf("Profile: %s (%s)\n", g_prof->name, g_prof->path);
+        printf("SHELL:   ID 0x%08X, CAPS 0x%08X (%s), CAPS2 0x%08X\n",
+               (unsigned)rd(CONTRACT_SHELL_ID), (unsigned)g_caps, caps_text(g_caps, t, sizeof(t)),
+               (unsigned)rd(CONTRACT_CAPS2));
+    }
+    uint32_t r_id = reg("regs.id"), r_cnt = reg("regs.counter");
+    uint32_t c1 = rd(r_cnt), c2 = rd(r_cnt);
+    printf("ID:      0x%08X%s\n", (unsigned)rd(r_id), rd(r_id) == ID_VALUE ? "" : "  (unexpected)");
+    if (persona_has_ab()) {
+        printf("A:       0x%08X\n", (unsigned)rd(reg("persona.a")));
+        printf("B:       0x%08X\n", (unsigned)rd(reg("persona.b")));
+        printf("SUM:     0x%08X\n", (unsigned)rd(reg("persona.sum")));
+    }
     printf("COUNTER: 0x%08X then 0x%08X (%s)\n", (unsigned)c1, (unsigned)c2,
            c1 != c2 ? "changing" : "STUCK");
     print_temp_line();
@@ -167,185 +249,6 @@ static int cmd_info(void)
     else
         printf("PR:      no PR controller (not project 04)\n");
     return 0;
-}
-
-/* ------------------------------------------------------------- persona */
-
-static int cmd_persona(void)
-{
-    if (require_pr() != 0)
-        return 3;
-    const uint32_t a = 0x12345678u, b = 0x11111111u;
-    print_persona();
-    wr(REG_A, a);
-    wr(REG_B, b);
-    uint32_t sum = rd(REG_SUM);
-    unsigned id = rd(REG_PERSONA) & 0xFFFFu;
-    uint32_t expected;
-    const char *op;
-    if (id == 1) {
-        expected = a + b;
-        op = "A + B";
-    } else if (id == 2) {
-        expected = a - b;
-        op = "A - B";
-    } else {
-        fprintf(stderr, "Unknown persona ID 0x%04X; SUM 0x%08X\n", id, (unsigned)sum);
-        return 4;
-    }
-    printf("A=0x%08X B=0x%08X  persona %u: %s\n", (unsigned)a, (unsigned)b, id, op);
-    printf("SUM:     0x%08X (expected 0x%08X)\n", (unsigned)sum, (unsigned)expected);
-    print_temp_line();
-    if (sum != expected) {
-        printf("Persona test FAILED.\n");
-        return 4;
-    }
-    printf("Persona test PASSED.\n");
-    return 0;
-}
-
-/* ------------------------------------------------------------- load-pr */
-
-static uint8_t *read_file(const char *path, size_t *len)
-{
-    FILE *f = fopen(path, "rb");
-    if (!f) {
-        perror(path);
-        return NULL;
-    }
-    fseek(f, 0, SEEK_END);
-    long n = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (n <= 0) {
-        fprintf(stderr, "%s: empty file\n", path);
-        fclose(f);
-        return NULL;
-    }
-    /* Room for zero padding to a whole 32-bit word. */
-    uint8_t *buf = calloc((size_t)n + 4, 1);
-    if (!buf || fread(buf, 1, (size_t)n, f) != (size_t)n) {
-        fprintf(stderr, "%s: read error\n", path);
-        free(buf);
-        fclose(f);
-        return NULL;
-    }
-    fclose(f);
-    *len = (size_t)n;
-    return buf;
-}
-
-/*
- * Protocol of the Partial Reconfiguration Controller (alt_pr, internal host,
- * Avalon-MM slave), from its RTL in Quartus Prime Pro 25.1:
- *   - write 1 to CSR bit 0: PR starts, freeze rises, status [4:2] = 4;
- *   - write every 32-bit word of the .rbf, little-endian, to the data port;
- *     the slave applies back-pressure (waitrequest) while the device consumes it;
- *   - when the bitstream is complete, freeze falls and status becomes
- *     5 (success), or 1/2/3 on PR error / CRC error / incompatible bitstream.
- */
-static int cmd_load_pr(const char *path)
-{
-    if (require_pr() != 0)
-        return 3;
-
-    size_t len = 0;
-    uint8_t *data = read_file(path, &len);
-    if (!data)
-        return 2;
-    uint8_t digest[32];
-    sha256(data, len, digest);
-    size_t words = (len + 3) / 4;
-
-    printf("File:    %s (%zu bytes, %zu words%s)\n", path, len, words,
-           len % 4 ? ", zero-padded to a whole word" : "");
-    printf("SHA-256: ");
-    for (int i = 0; i < 32; i++)
-        printf("%02X", digest[i]);
-    printf("\n\n-- before\n");
-
-    bar_info_t before, after;
-    if (bar_get_info(g_bar, &before) != 0) {
-        free(data);
-        return 5;
-    }
-    print_link(&before);
-    print_persona();
-    print_temp_line();
-
-    if (pr_status() == 4) {
-        fprintf(stderr, "PR controller already IN_PROGRESS; not starting another load.\n");
-        free(data);
-        return 6;
-    }
-
-    double t0 = plat_now();
-    wr(REG_PR_CSR, 1u);
-    unsigned st = pr_status();
-    printf("\n-- load\nStart:   status %u %s\n", st, pr_status_name(st));
-    if (st != 4) {
-        fprintf(stderr, "PR did not start.\n");
-        free(data);
-        return 6;
-    }
-
-    size_t step = words / 10 ? words / 10 : 1;
-    for (size_t i = 0; i < words; i++) {
-        uint32_t w = (uint32_t)data[4 * i] | (uint32_t)data[4 * i + 1] << 8 |
-                     (uint32_t)data[4 * i + 2] << 16 | (uint32_t)data[4 * i + 3] << 24;
-        wr(REG_PR_DATA, w);
-        if ((i + 1) % step == 0) {
-            printf("\r  %3u%%  %zu/%zu words", (unsigned)((i + 1) * 100 / words), i + 1, words);
-            fflush(stdout);
-        }
-    }
-    double t_data = plat_now() - t0;
-    printf("\n");
-    free(data);
-
-    double tp = plat_now();
-    while ((st = pr_status()) == 4) {
-        if (plat_now() - tp > 5.0) {
-            fprintf(stderr, "Timeout: still IN_PROGRESS 5 s after the last word.\n");
-            break;
-        }
-        plat_sleep_ms(1);
-    }
-    double t_total = plat_now() - t0;
-    printf("Result:  status %u %s; data %.3f s (%.2f MB/s), total %.3f s\n", st,
-           pr_status_name(st), t_data, (double)len / 1048576.0 / (t_data > 0 ? t_data : 1e-9),
-           t_total);
-
-    plat_sleep_ms(10);
-    printf("\n-- after\n");
-    if (bar_get_info(g_bar, &after) != 0)
-        return 5;
-    print_link(&after);
-    print_persona();
-    print_temp_line();
-
-    int same_bar = before.bar_phys == after.bar_phys && before.bar_length == after.bar_length;
-    int same_link = before.link_speed == after.link_speed && before.link_width == after.link_width;
-    printf("Check:   BAR0 %s, link %s, ID 0x%08X\n", same_bar ? "unchanged" : "CHANGED",
-           same_link ? "unchanged" : "CHANGED", (unsigned)rd(REG_ID));
-
-    if (st != 5)
-        return 7;
-    if (!same_bar || !same_link || rd(REG_ID) != ID_VALUE)
-        return 8;
-    printf("\n-- persona test\n");
-    return cmd_persona();
-}
-
-/* ---------------------------------------------------------------- temp */
-
-static int cmd_temp(double interval, long count)
-{
-    for (long n = 0;; n++) {
-        print_temp_line();
-        if (interval <= 0 || (count > 0 && n + 1 >= count))
-            return 0;
-        plat_sleep_ms((unsigned)(interval * 1000.0));
-    }
 }
 
 /* ------------------------------------------------------------ selftest */
@@ -361,6 +264,25 @@ static int cmd_selftest(void)
     printf("sha256(\"abc\"): %s\n", ok ? "ok" : "FAILED");
     uint32_t a = 0x12345678u, b = 0x11111111u;
     printf("A+B = 0x%08X, A-B = 0x%08X\n", (unsigned)(a + b), (unsigned)(a - b));
+
+    profile_t *all;
+    int n = profile_load_all(&all);
+    for (int i = 0; i < n; i++) {
+        int bad = check_profile(&all[i], all[i].caps);
+        for (int j = 0; j < i; j++) {
+            if (all[j].shell_id == all[i].shell_id) {
+                printf("  SHELL_ID 0x%08X used by %s and %s\n", (unsigned)all[i].shell_id,
+                       all[j].name, all[i].name);
+                bad++;
+            }
+        }
+        printf("profile %s: %s\n", all[i].name, bad ? "FAILED" : "ok");
+        if (bad)
+            ok = 0;
+    }
+    if (n == 0)
+        printf("profiles: none found (see 'fpga1768 list')\n");
+    free(all);
     return ok ? 0 : 1;
 }
 
@@ -368,28 +290,41 @@ static int cmd_selftest(void)
 
 static void usage(void)
 {
-    printf("usage: fpga1768 [--bdf BDF] <command> [args]\n\n"
+    printf("usage: fpga1768 [--bdf BDF] [--profile NAME] <command> [args]\n\n"
+           "  list                 list the host profiles found (no device needed)\n"
+           "  probe                check SHELL_ID, CAPS and the profile against the device\n"
            "  info                 device, link, BAR0 and all registers\n"
            "  read OFF             read 32 bits at BAR0 + OFF (hex)\n"
            "  write OFF VAL        write 32 bits at BAR0 + OFF (hex)\n"
            "  temp [SEC [COUNT]]   die temperature, once or every SEC seconds\n"
-           "  persona              write A, B and check SUM against the loaded persona\n"
-           "  load-pr FILE         load a persona PR bitstream (.rbf), verify link/BAR,\n"
+           "  persona              write A, B and check SUM against the loaded persona   [PR]\n"
+           "  load-pr FILE         load a persona PR bitstream (.rbf), verify link/BAR,  [PR]\n"
            "                       then run the persona test\n"
-           "  selftest             offline checks\n\n"
-           "--bdf selects the PCI device on Linux (default: first %04x:%04x).\n",
+           "  ddr status|test|quiesce|peek|poke   DDR4 commands, 'ddr help'           [DDR4]\n"
+           "  flash-dump FILE [MB] read the configuration flash (read-only window)      [FLASH]\n"
+           "  selftest             offline checks (SHA-256, profile files)\n\n"
+           "--bdf selects the PCI device on Linux (default: first %04x:%04x).\n"
+           "--profile forces a profile (name or .ini path) instead of matching SHELL_ID.\n"
+           "Profiles: $FPGA1768_PROFILES, <exe>/profiles, <exe>/../profiles, ./profiles,\n"
+           "./host/profiles. [CAP] = command needs that CAPS bit of the loaded design.\n",
            LAB_VENDOR_ID, LAB_DEVICE_ID);
 }
 
 int main(int argc, char **argv)
 {
-    const char *bdf = NULL;
+    const char *bdf = NULL, *force = NULL;
     int ai = 1;
-    if (ai + 1 < argc && strcmp(argv[ai], "--bdf") == 0) {
-        bdf = argv[ai + 1];
+    while (ai + 1 < argc && argv[ai][0] == '-' && argv[ai][1] == '-') {
+        if (!strcmp(argv[ai], "--bdf"))
+            bdf = argv[ai + 1];
+        else if (!strcmp(argv[ai], "--profile"))
+            force = argv[ai + 1];
+        else
+            break;
         ai += 2;
     }
-    if (ai >= argc || !strcmp(argv[ai], "-h") || !strcmp(argv[ai], "--help")) {
+    if (ai >= argc || !strcmp(argv[ai], "-h") || !strcmp(argv[ai], "--help") ||
+        !strcmp(argv[ai], "help")) {
         usage();
         return ai >= argc ? 2 : 0;
     }
@@ -398,12 +333,21 @@ int main(int argc, char **argv)
 
     if (!strcmp(cmd, "selftest"))
         return cmd_selftest();
+    if (!strcmp(cmd, "list"))
+        return cmd_list();
 
     if (bar_open(&g_bar, bdf) != 0)
         return 1;
+    int verbose = !strcmp(cmd, "info") || !strcmp(cmd, "probe");
+    if (core_select_profile(force, !verbose) != 0) {
+        bar_close(g_bar);
+        return 2;
+    }
 
     int rc;
-    if (!strcmp(cmd, "info")) {
+    if (!strcmp(cmd, "probe") && nargs == 0) {
+        rc = cmd_probe();
+    } else if (!strcmp(cmd, "info")) {
         rc = cmd_info();
     } else if (!strcmp(cmd, "read") && nargs == 1) {
         uint32_t off = (uint32_t)strtoul(argv[ai], NULL, 16);
