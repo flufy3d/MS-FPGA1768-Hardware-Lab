@@ -1,8 +1,13 @@
 # Windows BAR0 test driver
 
-A minimal KMDF function driver for the `projects/02_pcie_pio` endpoint
-(`PCI\VEN_1172&DEV_E003`). It maps BAR0, validates the design ID register, and
-exposes three IOCTLs to a small user-mode test program.
+A minimal KMDF function driver for the lab's PCIe endpoints (`projects/02_pcie_pio` and
+later, `PCI\VEN_1172&DEV_E003`). It maps BAR0, validates the design ID register, and
+exposes IOCTLs to the user-mode tools (`..\user\pcie_bar_test.exe`, `host\fpga1768`).
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.0 | 2026-11-17 | BAR0 info, 32-bit read, 32-bit write |
+| 1.1 | 2026-11-19 | configuration space read; 64-bit DMA enabler and 4 MB common buffers mapped into the caller (for `projects/07_dma`). The 1.0 IOCTLs and structs are unchanged. Built, not yet tested on hardware |
 
 This is a **test driver**. It is self-signed and only loads with Windows test
 signing enabled and Secure Boot disabled. Do not distribute it.
@@ -37,7 +42,7 @@ installed version with:
 
 | File | Purpose |
 |------|---------|
-| `pcie_bar.c` | KMDF driver: maps BAR0, validates ID, IOCTL read/write |
+| `pcie_bar.c` | KMDF driver: maps BAR0, validates ID, IOCTL read/write, config read, DMA buffers |
 | `pcie_bar.h` | IOCTL codes, structs, device-interface GUID |
 | `pcie_bar.inf` | binds `PCI\VEN_1172&DEV_E003`, installs the KMDF service |
 | `build.ps1` | compiles and links `pcie_bar.sys` with VS 2022 + WDK |
@@ -178,9 +183,28 @@ running or the read path is not reaching the FPGA.
   - `IOCTL_PCIE_BAR_READ32` (`0x00222004`) reads one 32-bit word.
   - `IOCTL_PCIE_BAR_WRITE32` (`0x00222008`) writes one 32-bit word; refused unless
     `BarValid` is set.
+  - 1.1: `IOCTL_PCIE_BAR_CFG_READ32` (`0x0022200C`) reads one dword of the PCI
+    configuration space (offset `0x000`-`0xFFC`) through `BUS_INTERFACE_STANDARD`.
+    Read only; there is no configuration write IOCTL.
+  - 1.1: `IOCTL_PCIE_BAR_DMA_INFO` (`0x00222010`) returns the interface version
+    (`0x00010001`), chunk size, chunk limit, chunks allocated, whether the DMA enabler
+    exists, and the PCI command register.
+  - 1.1: `IOCTL_PCIE_BAR_DMA_ALLOC` (`0x00222014`) allocates 1-64 physically contiguous
+    common buffers of 4 MB with a `WdfDmaProfileScatterGather64` enabler (so they may be
+    above 4 GB), zeroes them, maps each into the calling process (cached) and returns
+    `{user address, bus address}` per chunk. It sets the bus master enable bit of the
+    command register if it is clear. Refused unless `BarValid` is set. One pool per
+    device.
+  - 1.1: `IOCTL_PCIE_BAR_DMA_FREE` (`0x00222018`) unmaps and frees the pool.
 - Offsets must be 4-byte aligned and inside the mapped BAR.
-- No DMA, interrupts, power-management callbacks beyond the KMDF defaults, or
-  flash access.
+- The DMA pool belongs to the file handle that allocated it. It is freed by
+  `DMA_FREE`, when that handle is closed (also when the process exits), or when the
+  device stops (the driver then attaches to the owning process to remove the mapping).
+  `DMA_ALLOC` and `DMA_FREE` run in the caller's context (`EvtIoInCallerContext`).
+- The driver only provides memory: the device's own DMA engine is programmed through
+  BAR0 by the user-mode tool, which polls a status word the device writes into host
+  memory. No interrupts, power-management callbacks beyond the KMDF defaults, or flash
+  access.
 
 ## Troubleshooting
 

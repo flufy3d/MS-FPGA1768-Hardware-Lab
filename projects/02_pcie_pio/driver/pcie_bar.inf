@@ -1,4 +1,5 @@
-; pcie_bar.inf — KMDF function driver for the 02_pcie_pio BAR0 test endpoint.
+; pcie_bar.inf — KMDF function driver for the lab PCIe endpoints (1172:E003):
+; BAR0 access, configuration space reads and DMA common buffers (1.1).
 ;
 ; Test-signed only. Do not distribute.
 
@@ -8,7 +9,7 @@ Class=System
 ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
 Provider=%ProviderName%
 CatalogFile=pcie_bar.cat
-DriverVer=11/18/2026,1.0.0.2
+DriverVer=11/19/2026,1.1.0.0
 PnpLockdown=1
 
 [DestinationDirs]
