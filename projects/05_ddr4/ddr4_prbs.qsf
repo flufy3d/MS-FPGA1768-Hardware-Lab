@@ -23,6 +23,9 @@ set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 100
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
 set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+# Fitter seed: the default seed missed the top EMIF user clock by 0.042 ns after the
+# identity block was added (2026-11-19, ddr_port rd_ptr); see README "Results".
+set_global_assignment -name SEED 2
 
 # Source files (static region)
 set_global_assignment -name SYSTEMVERILOG_FILE ddr4_top.sv
@@ -444,12 +447,12 @@ set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pcie.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_temp.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pll_pr.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pr_ip.ip
-set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_shell.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_counter.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_id.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_temp.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_pio_persona.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_scratch_ram.ip
+set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_id_br.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_regs_br.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_persona_br.ip
 set_global_assignment -name IP_FILE ip/shell_sys/shell_sys_flash_br.ip

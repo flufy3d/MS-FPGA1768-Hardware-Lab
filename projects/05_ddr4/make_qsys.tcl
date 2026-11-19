@@ -11,7 +11,9 @@
 # ddr4_top.sv, outside this system.
 #
 #   BAR0 (64-bit prefetchable, 64 KB)
-#   0x0000  SHELL_ID   PIO RO  0x53480501 ("SH", project 05, shell v1)
+#   0x0000  id_br      16 B   identity block implemented in ddr4_top.sv:
+#                             0x00 SHELL_ID 0x53480501 ("SH", project 05, v1),
+#                             0x04 CAPS 0x0000000D, 0x08 CAPS2 0 (reserved)
 #   0x0030  COUNTER    PIO RO  free-running clk_100 counter
 #   0x0040  ID         PIO RO  0x50434945 (the Windows test driver checks it)
 #   0x0050  TEMP       PIO RO  die temperature sensor (as projects 03/04)
@@ -106,8 +108,8 @@ proc add_pio {name dir} {
     set_instance_parameter_value $name resetValue 0
 }
 
-set PIOS {pio_shell pio_counter pio_id pio_temp pio_persona}
-set PIO_BASE {0x0000 0x0030 0x0040 0x0050 0x0060}
+set PIOS {pio_counter pio_id pio_temp pio_persona}
+set PIO_BASE {0x0030 0x0040 0x0050 0x0060}
 
 foreach p $PIOS { add_pio $p Input }
 
@@ -120,8 +122,10 @@ set_instance_parameter_value scratch_ram dualPort false
 set_instance_parameter_value scratch_ram singleClockOperation false
 set_instance_parameter_value scratch_ram writable true
 
-# Avalon-MM bridges whose master side is exported to ddr4_top.sv: the shell
-# register block, the persona register window and the flash window.
+# Avalon-MM bridges whose master side is exported to ddr4_top.sv: the
+# identity block (SHELL_ID, CAPS, CAPS2; the same 16-byte span as the
+# SHELL_ID PIO it replaced), the shell register block, the persona register
+# window and the flash window.
 proc add_bridge {name addr_width} {
     add_instance $name altera_avalon_mm_bridge
     set_instance_parameter_value $name DATA_WIDTH 32
@@ -134,6 +138,7 @@ proc add_bridge {name addr_width} {
     set_instance_parameter_value $name PIPELINE_RESPONSE 1
     set_instance_parameter_value $name USE_RESPONSE 0
 }
+add_bridge id_br      4
 add_bridge regs_br    8
 add_bridge persona_br 12
 add_bridge flash_br   14
@@ -254,6 +259,9 @@ foreach p $PIOS b $PIO_BASE {
     set_connection_parameter_value pcie.rxm_bar0/$p.s1 baseAddress $b
 }
 
+add_connection pcie.rxm_bar0 id_br.s0
+set_connection_parameter_value pcie.rxm_bar0/id_br.s0 baseAddress 0x0000
+
 add_connection pcie.rxm_bar0 pr_ip.avmm_slave
 set_connection_parameter_value pcie.rxm_bar0/pr_ip.avmm_slave baseAddress 0x0100
 
@@ -276,7 +284,7 @@ foreach p $PIOS {
     add_connection clk_100.clk       $p.clk
     add_connection clk_100.clk_reset $p.reset
 }
-foreach b {regs_br persona_br} {
+foreach b {id_br regs_br persona_br} {
     add_connection clk_100.clk       $b.clk
     add_connection clk_100.clk_reset $b.reset
 }
@@ -329,7 +337,7 @@ add_connection pll_pr.outclk0 clk_50_br.in_clk
 add_interface clk_50 clock start
 set_interface_property clk_50 EXPORT_OF clk_50_br.out_clk
 
-foreach b {regs_br persona_br flash_br} {
+foreach b {id_br regs_br persona_br flash_br} {
     add_interface ${b}_m0 avalon start
     set_interface_property ${b}_m0 EXPORT_OF $b.m0
 }

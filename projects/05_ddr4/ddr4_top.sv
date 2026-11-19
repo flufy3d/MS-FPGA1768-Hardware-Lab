@@ -64,7 +64,14 @@ module ddr4_top (
     inout  wire [71:0]  bot_mem_dq,
     inout  wire [8:0]   bot_mem_dbi_n
 );
-    localparam [31:0] SHELL_ID = 32'h53480501;   // "SH", project 05, shell v1
+    // Identity block, BAR0 + 0x00 (the minimal contract of the host tool):
+    //   0x00 SHELL_ID  "SH", project 05, shell v1
+    //   0x04 CAPS      [0] DDR4, [1] I2C (not present), [2] PR, [3] flash window
+    //   0x08 CAPS2     reserved, 0
+    //   0x0C           reads 0
+    localparam [31:0] SHELL_ID = 32'h53480501;
+    localparam [31:0] CAPS     = 32'h0000000D;
+    localparam [31:0] CAPS2    = 32'h00000000;
 
     // ----------------------------------------------------------------------
     // Power-up pulses: PR/flash clock PLL reset and EMIF global reset
@@ -150,6 +157,25 @@ module ddr4_top (
     wire [575:0] be_wdata, be_rdata;
     wire [71:0]  be_be;
     wire [6:0]   be_burst;
+
+    // ----------------------------------------------------------------------
+    // Identity block (BAR0 + 0x00, 16 bytes, read only; writes are ignored)
+    // ----------------------------------------------------------------------
+    wire [3:0]   id_addr;
+    wire         id_read;
+    reg  [31:0]  id_rdata  = 32'd0;
+    reg          id_rvalid = 1'b0;
+    always_ff @(posedge clk_100) begin
+        id_rvalid <= id_read;
+        if (id_read) begin
+            case (id_addr[3:2])
+                2'd0:    id_rdata <= SHELL_ID;
+                2'd1:    id_rdata <= CAPS;
+                2'd2:    id_rdata <= CAPS2;
+                default: id_rdata <= 32'd0;
+            endcase
+        end
+    end
 
     // ----------------------------------------------------------------------
     // Shell registers (BAR0 + 0x200)
@@ -324,7 +350,6 @@ module ddr4_top (
         .pcie_hip_serial_tx_out6  (pcie1_tx[6]),
         .pcie_hip_serial_tx_out7  (pcie1_tx[7]),
 
-        .pio_shell_external_export   (SHELL_ID),
         .pio_counter_external_export (counter),
         .pio_id_external_export      (32'h50434945),
         .pio_temp_external_export    (pio_temp),
@@ -338,6 +363,18 @@ module ddr4_top (
         .pr_freeze_freeze            (pr_freeze),
         .pll_pr_locked_export        (pll_pr_locked),
         .pll_pr_reset_reset          (pll_pr_reset),
+
+        // Identity block
+        .id_br_m0_waitrequest        (1'b0),
+        .id_br_m0_readdata           (id_rdata),
+        .id_br_m0_readdatavalid      (id_rvalid),
+        .id_br_m0_burstcount         (),
+        .id_br_m0_writedata          (),
+        .id_br_m0_address            (id_addr),
+        .id_br_m0_write              (),
+        .id_br_m0_read               (id_read),
+        .id_br_m0_byteenable         (),
+        .id_br_m0_debugaccess        (),
 
         // Shell registers
         .regs_br_m0_waitrequest      (1'b0),
