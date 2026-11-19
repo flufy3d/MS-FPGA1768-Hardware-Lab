@@ -22,6 +22,7 @@
  *   flash-dump FILE [MB] read the configuration flash (read-only window)
  *   i2c ...              I2C master commands ('i2c help')
  *   retimer ...          DS250DF810 retimer status / bypass ('retimer help')
+ *   dma ...              DMA throughput test ('dma help')
  *   selftest             offline checks (no device needed)
  */
 #include <stdio.h>
@@ -46,6 +47,18 @@ static const char *keys_ddr[] = { "regs.ddr_status", "regs.ddr_quiesce", "regs.d
                                   "ddr.user_clock_hz", "ddr.info_value", NULL };
 static const char *keys_flash[] = { "regs.flash_page", "regs.flash_win", "flash.window_bytes",
                                     "flash.size_mb", NULL };
+static const char *keys_dma[] = { "regs.port_index", "regs.dma_version", "regs.dma_clk_hz",
+                                  "regs.dma_ram_bytes", "regs.dma_chunk_shift", "regs.dma_chunk_count",
+                                  "regs.dma_time_lo", "regs.dma_ctrl", "regs.dma_status",
+                                  "regs.dma_seed", "regs.dma_h2d", "regs.dma_d2h", "regs.dma_chk",
+                                  "regs.dma_chunk_table", "dma.version", "dma.pat_base_hi",
+                                  "dma.fpga_lo", "dma.fpga_hi", "dma.length", "dma.chunk0",
+                                  "dma.desc_shift", "dma.loops", "dma.max_out", "dma.seq",
+                                  "dma.stat_lo", "dma.stat_hi", "dma.issued", "dma.done", "dma.err",
+                                  "dma.state", "dma.t_first", "dma.t_last", "dma.d_first",
+                                  "dma.d_last", "dma.beats", "dma.cycles", "dma.chk_err",
+                                  "dma.chk_addr", "dma.chk_exp", "dma.chk_got", "dma.chk_beats",
+                                  NULL };
 static const char *keys_i2c[] = { "regs.i2c_ctrl", "regs.i2c_addr", "regs.i2c_page", "regs.i2c_reg",
                                   "regs.i2c_len", "regs.i2c_data", "regs.i2c_status", "regs.i2c_div",
                                   "i2c.max_len", "i2c.clk_hz", "i2c.sensor_bus", "i2c.tmp411",
@@ -89,6 +102,8 @@ static int check_profile(const profile_t *p, uint32_t caps)
         bad += check_keys(p, "FLASH", keys_flash);
     if (caps & CAP_I2C)
         bad += check_keys(p, "I2C", keys_i2c);
+    if (caps & CAP_DMA)
+        bad += check_keys(p, "DMA", keys_dma);
     return bad;
 }
 
@@ -227,6 +242,8 @@ static int cmd_probe(void)
                (unsigned)((v >> 18) & 1u), (unsigned)((v >> 19) & 1u), idle ? "ok" : "FAIL");
         bad += !idle;
     }
+    if (g_caps & CAP_DMA)
+        bad += dma_probe();
 
 done:
     printf("Probe:    %s\n", bad ? "FAILED" : "OK");
@@ -319,6 +336,7 @@ static void usage(void)
            "  flash-dump FILE [MB] read the configuration flash (read-only window)      [FLASH]\n"
            "  i2c status|scan|read|preg|sensors|speed   I2C commands, 'i2c help'     [I2C]\n"
            "  retimer status|bypass   DS250DF810 retimer, 'retimer help'          [I2C]\n"
+           "  dma info|run|bench   DMA throughput test, 'dma help'                    [DMA]\n"
            "  selftest             offline checks (SHA-256, profile files)\n\n"
            "--bdf selects the PCI device on Linux (default: first %04x:%04x).\n"
            "--profile forces a profile (name or .ini path) instead of matching SHELL_ID.\n"
@@ -393,6 +411,8 @@ int main(int argc, char **argv)
         rc = cmd_i2c(nargs, argv + ai);
     } else if (!strcmp(cmd, "retimer")) {
         rc = cmd_retimer(nargs, argv + ai);
+    } else if (!strcmp(cmd, "dma")) {
+        rc = cmd_dma(nargs, argv + ai);
     } else {
         usage();
         rc = 2;

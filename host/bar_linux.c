@@ -219,6 +219,53 @@ double plat_now(void)
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
 
+int bar_cfg_read32(bar_t *b, uint32_t offset, uint32_t *value)
+{
+    char path[256];
+    snprintf(path, sizeof(path), SYSFS_PCI "/%.63s/config", b->bdf);
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "%s: %s\n", path, strerror(errno));
+        return -1;
+    }
+    uint32_t v = 0xFFFFFFFFu;
+    ssize_t n = pread(fd, &v, sizeof(v), (off_t)(offset & 0xFFCu));
+    close(fd);
+    if (n != (ssize_t)sizeof(v)) {
+        fprintf(stderr, "%s: short read at 0x%X (extended config space needs root)\n",
+                path, (unsigned)offset);
+        return -1;
+    }
+    *value = v;
+    return 0;
+}
+
+static int no_dma(void)
+{
+    fprintf(stderr, "DMA is not implemented in the Linux backend (it needs a kernel driver "
+                    "for DMA memory; see host/README.md).\n");
+    return -1;
+}
+
+int bar_dma_info(bar_t *b, bar_dma_info_t *info)
+{
+    (void)b;
+    memset(info, 0, sizeof(*info));
+    return no_dma();
+}
+
+int bar_dma_alloc(bar_t *b, unsigned n, bar_dma_chunk_t *chunks, uint32_t *chunk_bytes)
+{
+    (void)b; (void)n; (void)chunks; (void)chunk_bytes;
+    return no_dma();
+}
+
+int bar_dma_free(bar_t *b)
+{
+    (void)b;
+    return no_dma();
+}
+
 void plat_sleep_ms(unsigned ms)
 {
     struct timespec ts = { (time_t)(ms / 1000), (long)(ms % 1000) * 1000000L };

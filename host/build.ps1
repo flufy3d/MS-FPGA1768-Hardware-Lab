@@ -1,7 +1,7 @@
 # Windows build of the fpga1768 host tool with gcc (MSYS2 UCRT64 or
 # any MinGW-w64 gcc on PATH; set $env:CC to override).
 #
-#   .\build.ps1        ->  build\pcie_hot_update.exe
+#   .\build.ps1        ->  build\fpga1768.exe
 #
 # The Windows backend talks to the KMDF test driver in
 # projects/02_pcie_pio/driver; install that driver first.
@@ -30,6 +30,7 @@ try {
     # Core, capability modules, Windows backend. Keep in sync with Makefile.
     $src = @('fpga1768.c', 'core.c', 'profile.c',
              'cap_temp.c', 'cap_pr.c', 'cap_persona.c', 'cap_ddr.c', 'cap_flash.c', 'cap_i2c.c', 'cap_retimer.c',
+             'cap_dma.c',
              'sha256.c', 'bar_windows.c')
     & $cc -O2 -Wall -Wextra -std=c99 -static -o $exe @src -lsetupapi
     if ($LASTEXITCODE -ne 0) { throw "$cc failed with exit code $LASTEXITCODE" }

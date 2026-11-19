@@ -6,7 +6,7 @@
  *               selection, capability checks), profile.c (INI files),
  *               bar_windows.c / bar_linux.c (enumerate 1172:E003, map BAR0)
  *   modules     cap_temp.c, cap_pr.c, cap_persona.c, cap_ddr.c, cap_flash.c,
- *               cap_i2c.c, cap_retimer.c
+ *               cap_i2c.c, cap_retimer.c, cap_dma.c
  *   profiles    host/profiles/<project>.ini
  *
  * Modules never hard-code a BAR0 offset: they ask for it by name with reg()
@@ -89,5 +89,9 @@ int      i2c_write_reg8(int bus, unsigned addr, unsigned reg, uint8_t val);
 
 /* cap_retimer.c */
 int      cmd_retimer(int argc, char **argv);
+
+/* cap_dma.c */
+int      cmd_dma(int argc, char **argv);
+int      dma_probe(void);               /* probe lines for CAPS bit 4; returns failures */
 
 #endif

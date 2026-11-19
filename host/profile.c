@@ -296,14 +296,14 @@ profile_t *profile_match(uint32_t shell_id)
 
 const char *caps_text(uint32_t caps, char *buf, unsigned len)
 {
-    static const char *names[4] = { "DDR4", "I2C", "PR", "FLASH" };
+    static const char *names[5] = { "DDR4", "I2C", "PR", "FLASH", "DMA" };
     buf[0] = '\0';
     size_t used = 0;
     for (int b = 0; b < 32; b++) {
         if (!((caps >> b) & 1u))
             continue;
         char tmp[16];
-        if (b < 4)
+        if (b < 5)
             snprintf(tmp, sizeof(tmp), "%s", names[b]);
         else
             snprintf(tmp, sizeof(tmp), "bit%d", b);

@@ -5,7 +5,10 @@
 > The core/capability/profile structure (2026-11-19) is built on Windows and Linux and
 > tested offline only (`list`, `selftest`, `--help`, plus a mock BAR0 backend); not yet
 > run against the card. The I2C module (`cap_i2c.c`, 2026-11-19) is tested offline against
-> a mock of the project 06 register block only. Linux backend built, not tested on hardware.
+> a mock of the project 06 register block only. The DMA module (`cap_dma.c`, 2026-11-19)
+> and the driver 1.1 calls it uses are tested offline against a mock of the project 07
+> engine only (`dma info`, `run`, `bench`, data-error and timeout paths); not yet run on
+> the card. Linux backend built, not tested on hardware; it has no DMA support.
 > Source: written for this repository
 
 A portable C99 command-line tool for the lab's PCIe designs (vendor/device ID
@@ -31,6 +34,7 @@ profile.
 | | `cap_flash.c` | read-only configuration flash window (`flash-dump`) |
 | | `cap_i2c.c` | I2C master: scan, register reads, board sensors (`i2c ...`) |
 | | `cap_retimer.c` | DS250DF810 retimer on I2C bus 1: status, CDR bypass (`retimer ...`) |
+| | `cap_dma.c` | DMA throughput test: config-space MPS/MRRS, timed and verified transfers (`dma ...`) |
 | profiles | `profiles/<project>.ini` | per-project SHELL_ID, CAPS and every BAR0 offset the modules use |
 | | `sha256.c`, `sha256.h` | SHA-256 of loaded bitstreams and flash dumps |
 
@@ -43,6 +47,12 @@ included from its `pcie_bar.h`), link speed/width from
 `DEVPKEY_PciDevice_CurrentLinkSpeed/Width`; `bar_linux.c` maps
 `/sys/bus/pci/devices/<BDF>/resource0` with no kernel driver, link from
 `current_link_speed/width`.
+
+Configuration space reads (`bar_cfg_read32`) and DMA memory (`bar_dma_alloc`) need
+driver interface **1.1** (2026-11-19) on Windows; a 1.0 driver answers them with
+`ERROR_INVALID_FUNCTION` and the tool says to reinstall the driver. The other commands
+work with either version. On Linux, configuration space comes from sysfs; DMA memory is
+not implemented (it needs a kernel driver), so `dma run|bench` stop there.
 
 ## Minimal contract
 
@@ -63,6 +73,7 @@ CAPS bits:
 | 1 | I2C | `i2c ...`, `retimer ...` |
 | 2 | PR (partial reconfiguration controller) | `load-pr`, `persona` |
 | 3 | flash window (read only) | `flash-dump` |
+| 4 | DMA (descriptor engine, pattern generator/checker, loopback RAM) | `dma run`, `dma bench`, `dma info` |
 
 A command whose capability bit is missing stops with exit code 3 and names the command,
 the missing capability, the profile and the CAPS value, for example:
@@ -90,6 +101,7 @@ One INI file per project, named after the project directory:
 |---------|---------|----------|------|
 | [`profiles/05_ddr4.ini`](profiles/05_ddr4.ini) | [projects/05_ddr4](../projects/05_ddr4/) | `0x53480501` | `0x0D` DDR4, PR, flash window |
 | [`profiles/06_i2c_telemetry.ini`](profiles/06_i2c_telemetry.ini) | [projects/06_i2c_telemetry](../projects/06_i2c_telemetry/) | `0x49323036` | `0x06` I2C, PR |
+| [`profiles/07_dma.ini`](profiles/07_dma.ini) | [projects/07_dma](../projects/07_dma/) | `0x444D4137` | `0x10` DMA |
 
 ```ini
 [profile]
@@ -158,8 +170,28 @@ fpga1768 [--bdf BDF] [--profile NAME] <command>
   flash-dump FILE [MB] [FLASH] read the configuration flash (read-only window)
   i2c status|scan|read|preg|sensors|speed   [I2C]  ('i2c help')
   retimer status [CH] | bypass CH|all on|off [I2C]  ('retimer help')
+  dma info | run [opts] | bench [opts]       [DMA]  ('dma help')
   selftest             offline checks (SHA-256 test vector, every profile file)
 ```
+
+DMA (`dma ...`, project 07):
+
+| Command | What it does |
+|---------|--------------|
+| `dma info` | driver DMA state, PCI command register, link and **MPS / MRRS / extended tags** read from the PCI Express capability in configuration space, engine constants and state |
+| `dma run [--dir h2d\|d2h\|both] [--mode pattern\|ram] [--size N] [--desc N] [--loops N] [--repeat N]` | one test point, timed and verified |
+| `dma bench [--dir LIST] [--mode LIST] [--min N] [--max N] [--csv FILE]` | matrix: modes x directions x power-of-two sizes (default 4K..64M); prints die temperature before and after |
+
+The tool allocates 4 MB common buffers from the driver, writes their bus addresses into
+the engine's chunk table, starts both directions with one register write and polls the
+16-byte status record the FPGA writes into host memory (no interrupts). It reports
+`fpga` GB/s (first descriptor to last completion, counted by the FPGA's 250 MHz clock),
+`app` GB/s (host `QueryPerformanceCounter` from the start write to the status record),
+`data` GB/s (first to last Avalon data beat) and, for simultaneous transfers, the combined
+H2D + D2H rate. GB/s = 10^9 bytes per second. `pattern` mode streams to / from the
+address-pattern checker and generator (any size, H2D checked in the FPGA, D2H checked in
+host memory); `ram` mode uses the on-chip RAM and verifies by loopback. Details:
+[projects/07_dma/README.md](../projects/07_dma/README.md).
 
 Register maps and the DDR test options are in
 [projects/05_ddr4/README.md](../projects/05_ddr4/README.md); the I2C register map in
@@ -211,8 +243,8 @@ by itself; run `ddr quiesce on` first if a persona may have DDR traffic in fligh
 | 1 | device not found / cannot open BAR0; `list`: no profile found |
 | 2 | usage error, unreadable file, profile not found or missing a key |
 | 3 | wrong bitstream loaded (ID, PR controller or PLL check failed), capability missing from CAPS, `probe` failed or no profile matches |
-| 4 | persona test or DDR test failed (also: persona ID unknown, e.g. after `load-pr` on project 05); I2C NACK or timeout |
+| 4 | persona test or DDR test failed (also: persona ID unknown, e.g. after `load-pr` on project 05); I2C NACK or timeout; DMA data error |
 | 5 | BAR0 access error |
-| 6 | PR did not start / already in progress; DDR ports did not quiesce; mailbox or abort timeout |
+| 6 | PR did not start / already in progress; DDR ports did not quiesce; mailbox or abort timeout; DMA status record timeout (engine aborted) |
 | 7 | PR status not `SUCCESS` |
 | 8 | link, BAR0 or ID changed across a PR load |

@@ -137,6 +137,7 @@ static const char *cap_name(uint32_t cap)
     case CAP_I2C:   return "I2C (CAPS bit 1)";
     case CAP_PR:    return "PR (CAPS bit 2)";
     case CAP_FLASH: return "flash window (CAPS bit 3)";
+    case CAP_DMA:   return "DMA (CAPS bit 4)";
     default:        return "unknown capability";
     }
 }

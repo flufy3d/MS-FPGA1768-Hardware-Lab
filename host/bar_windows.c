@@ -8,6 +8,10 @@
  * The driver only allows writes when it read 0x50434945 at BAR0 + 0x40 when
  * the device started. Link speed and width come from the PnP properties
  * DEVPKEY_PciDevice_CurrentLinkSpeed / CurrentLinkWidth.
+ *
+ * Driver 1.1 (2026-11-19) adds configuration space reads and DMA common
+ * buffers (bar_cfg_read32, bar_dma_*); with a 1.0 driver those calls fail
+ * with ERROR_INVALID_FUNCTION and the message says to update the driver.
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -162,6 +166,86 @@ int bar_write32(bar_t *b, uint32_t offset, uint32_t value)
     if (!DeviceIoControl(b->handle, IOCTL_PCIE_BAR_WRITE32, &req, sizeof(req),
                          NULL, 0, &got, NULL)) {
         fprintf(stderr, "write32(0x%X) failed: %lu\n", (unsigned)offset, GetLastError());
+        return -1;
+    }
+    return 0;
+}
+
+static void report_old_driver(const char *what, DWORD err)
+{
+    fprintf(stderr, "%s failed: %lu", what, err);
+    if (err == ERROR_INVALID_FUNCTION)
+        fprintf(stderr, " (driver older than 1.1: rebuild, sign and reinstall "
+                        "projects/02_pcie_pio/driver)");
+    fprintf(stderr, "\n");
+}
+
+int bar_cfg_read32(bar_t *b, uint32_t offset, uint32_t *value)
+{
+    PCIE_BAR_ACCESS req = { offset, 0 }, rsp = { 0, 0 };
+    DWORD got = 0;
+    if (!DeviceIoControl(b->handle, IOCTL_PCIE_BAR_CFG_READ32, &req, sizeof(req),
+                         &rsp, sizeof(rsp), &got, NULL)) {
+        report_old_driver("IOCTL_PCIE_BAR_CFG_READ32", GetLastError());
+        return -1;
+    }
+    *value = rsp.Value;
+    return 0;
+}
+
+int bar_dma_info(bar_t *b, bar_dma_info_t *info)
+{
+    PCIE_DMA_INFO raw;
+    DWORD got = 0;
+    memset(info, 0, sizeof(*info));
+    if (!DeviceIoControl(b->handle, IOCTL_PCIE_BAR_DMA_INFO, NULL, 0,
+                         &raw, sizeof(raw), &got, NULL)) {
+        report_old_driver("IOCTL_PCIE_BAR_DMA_INFO", GetLastError());
+        return -1;
+    }
+    info->version     = raw.Version;
+    info->chunk_bytes = raw.ChunkBytes;
+    info->max_chunks  = raw.MaxChunks;
+    info->allocated   = raw.ChunksAllocated;
+    info->enabled     = raw.DmaEnabled;
+    info->command     = raw.CommandRegister;
+    return 0;
+}
+
+int bar_dma_alloc(bar_t *b, unsigned n, bar_dma_chunk_t *chunks, uint32_t *chunk_bytes)
+{
+    PCIE_DMA_ALLOC req;
+    PCIE_DMA_CHUNKS *rsp = calloc(1, sizeof(*rsp));
+    DWORD got = 0;
+    if (!rsp)
+        return -1;
+    req.ChunkCount = n;
+    if (!DeviceIoControl(b->handle, IOCTL_PCIE_BAR_DMA_ALLOC, &req, sizeof(req),
+                         rsp, sizeof(*rsp), &got, NULL)) {
+        report_old_driver("IOCTL_PCIE_BAR_DMA_ALLOC", GetLastError());
+        free(rsp);
+        return -1;
+    }
+    if (rsp->Count != n) {
+        fprintf(stderr, "DMA_ALLOC returned %lu chunks, asked for %u\n",
+                (unsigned long)rsp->Count, n);
+        free(rsp);
+        return -1;
+    }
+    for (unsigned i = 0; i < n; i++) {
+        chunks[i].va  = (uint8_t *)(uintptr_t)rsp->Chunk[i].UserAddress;
+        chunks[i].bus = rsp->Chunk[i].BusAddress;
+    }
+    *chunk_bytes = rsp->ChunkBytes;
+    free(rsp);
+    return (int)n;
+}
+
+int bar_dma_free(bar_t *b)
+{
+    DWORD got = 0;
+    if (!DeviceIoControl(b->handle, IOCTL_PCIE_BAR_DMA_FREE, NULL, 0, NULL, 0, &got, NULL)) {
+        report_old_driver("IOCTL_PCIE_BAR_DMA_FREE", GetLastError());
         return -1;
     }
     return 0;

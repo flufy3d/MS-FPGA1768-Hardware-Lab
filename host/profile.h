@@ -29,6 +29,7 @@
 #define CAP_I2C            (1u << 1)
 #define CAP_PR             (1u << 2)
 #define CAP_FLASH          (1u << 3)
+#define CAP_DMA            (1u << 4)
 
 #define PROFILE_MAX_KEYS   160
 #define PROFILE_MAX_FILES  64
