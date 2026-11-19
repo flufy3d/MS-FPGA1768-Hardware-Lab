@@ -1,6 +1,6 @@
 # Installing Quartus Prime Pro 25.1
 
-> Status: verified on this machine (2026-11-17) · Windows 10 x64
+> Status: verified on this machine (2026-11-17; patch 0.36 applied 2026-11-19) · Windows 10 x64
 
 ## 1. Download / collect the installer
 
@@ -69,6 +69,39 @@ valid switch. A real check is:
 Without `scripts\env.ps1` in the same session the Platform Designer tools (and the
 `qsys-edit` GUI) fail with `Unknown device part 10AXF40AA`; see
 [troubleshooting](../troubleshooting.md#platform-designer-reports-unknown-device-part-10axf40aa).
+
+## 2c. Patch 0.36 (required since 2026-01-10)
+
+Quartus Prime Pro 23.3–25.3.1 has a date-dependent DDM crash: commands fail or hang at a
+random stage with
+
+```
+Error (22912): Unhandled exception:
+Fatal Error: Assertion failed ... ddm_assessor.cpp:53:
+DDM_T::verify_token(token) : Cannot identify the client
+```
+
+and leave a `serv_req_info.txt` in the project directory. Altera published patch 0.36 for
+25.1 (`quartus-25.1-0.36-windows.exe`), attached to KDB article 349714
+([why do I unexpectedly observe intermittent DDM errors](https://community.altera.com/kb/knowledge-base/why-do-i-unexpectedly-observe-intermittent-ddm-errors/349714)).
+It is a vendor patch: install it into the Quartus tree, never into this repository.
+
+```powershell
+# elevated, after unzipping the patch package
+.\quartus-25.1-0.36-windows.exe --mode unattended `
+  --installdir D:\altera_pro\25.1 --accept_eula 1
+```
+
+Verify that the version line names the patch:
+
+```powershell
+D:\altera_pro\25.1\quartus\bin64\quartus_sh.exe -v
+# Version 25.1.0 Build 129 03/26/2025 Patches 0.36 SC Pro Edition
+```
+
+Applied on the lab host 2026-11-19 after three consecutive DDM crashes (Platform Designer,
+IP generation, Analysis & Synthesis). Without the patch, a compile may need several
+attempts; with it, `qsys-generate` and the full flow completed normally.
 
 ## 3. Verify
 
