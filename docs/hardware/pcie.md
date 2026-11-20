@@ -2,7 +2,7 @@
 
 > Status: reported (prior art tested both interfaces); link state and PCIe #1 BAR0 MMIO
 > verified on this card
-> Last verified: 2026-11-18
+> Last verified: 2026-11-20
 
 ## Overview
 
@@ -109,6 +109,22 @@ Conditions that mattered on this host:
 See [lab-log/2026-11-18-pcie-gen3-bar0-temp.md](../../lab-log/2026-11-18-pcie-gen3-bar0-temp.md)
 and [lab-log/2026-11-18-pcie-gen3-dma-retest.md](../../lab-log/2026-11-18-pcie-gen3-dma-retest.md).
 
+### DMA throughput at Gen3 x8 (2026-11-20) — verified
+
+Status: verified 2026-11-20 on PCB `M1003380-005`, same host as above, with
+`projects/07_dma` (hard IP data movers, descriptor engine in the FPGA, driver 1.1
+common buffers above 4 GB).
+
+| Fact | Value | Status |
+|------|-------|--------|
+| Negotiated MPS / MRRS | 256 / 512 bytes (device supports MPS 256) | verified (configuration space) |
+| Host → FPGA (read DMA), 64 MB | 7.105 GB/s | verified |
+| FPGA → host (write DMA), 64 MB | 7.065 GB/s | verified |
+| Both at once, 64 MB | 7.018 + 6.516 = 13.031 GB/s | verified |
+| HIP core clock on this host | 255.02 MHz (2.5 × refclk), so the slot's refclk is about 102.0 MHz | verified (counter vs host timer); cause (BIOS BCLK) is a hypothesis |
+
+See [lab-log/2026-11-20-dma.md](../../lab-log/2026-11-20-dma.md).
+
 ### Updating the logic over PCIe (2026-11-18) — verified
 
 Status: verified 2026-11-18 on PCB `M1003380-005`, same host as above.
@@ -161,6 +177,9 @@ that only matches the BSP's own IDs. It is not useful outside OpenCL.
 ## Things that bite
 
 - `npor` must be tied high (1'b1) in the design; only `pin_perst` comes from the slot.
+- The slot's refclk is not always exactly 100 MHz: on the lab's ASUS X99-E it measured
+  about 102.0 MHz (2026-11-20), so the HIP core clock ran at 255 MHz instead of 250 MHz
+  and the link at about 8.16 GT/s. Measure clock-derived rates against the host timer.
 - The HIP needs `refclk` at 100 MHz. Feeding it from `clk_u59` "works" for enumeration in
   some designs but violates the PCIe reference clock specification — use the dedicated
   `clk_pcie1/2` pins.

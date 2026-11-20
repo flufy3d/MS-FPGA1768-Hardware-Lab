@@ -34,10 +34,11 @@ rebuilt for the host contract (03's `A` register sat at `0x00`).
 4. Report the negotiated Max Payload Size and Max Read Request Size from configuration
    space, because they bound the result.
 
-Reference (an estimate, **not** verified): Gen3 x8 raw rate is
+Reference (the estimate made before the build): Gen3 x8 raw rate is
 8 GT/s × 8 lanes × 128/130 = 7.877 GB/s per direction. After TLP and DLLP overhead,
-writes (D2H) are expected around 6.8–7.0 GB/s and reads (H2D) around 5.5–6.5 GB/s,
-depending on MPS, MRRS and the root complex.
+writes (D2H) were expected around 6.8–7.0 GB/s and reads (H2D) around 5.5–6.5 GB/s,
+depending on MPS, MRRS and the root complex. Measured: both about 7.1 GB/s (see
+[Results](#results); the lab host's link runs at about 8.16 GT/s).
 
 ## Why the design looks like this
 
@@ -231,12 +232,16 @@ This is a volatile JTAG load. **Do not write the configuration flash.**
 - `probe`: SHELL_ID `0x444D4137` → profile `07_dma`, CAPS `0x10` (DMA), VERSION ok.
 - `dma info`: link Gen3 x8, bus master on, MPS and MRRS as negotiated by the host.
 - `dma run` / `bench`: every point `ok`; `fpga` GB/s grows with size and levels off for
-  transfers of a few MB.
+  transfers of a few MB (about 7.1 GB/s each way on the lab host).
+- The `Engine:` line shows the core clock measured against the host timer; it differs
+  from 250 MHz when the host's PCIe reference clock is not exactly 100 MHz.
 
 ## Status
 
-Built (2026-11-20), timing met, simulated; **not tested on hardware**. Resource use and
-timing: see [Results](#results).
+**Verified on hardware 2026-11-20** (PCB `M1003380-005`, ASUS X99-E): BAR0 contract,
+data correct in every mode and direction, 7.105 GB/s H2D, 7.065 GB/s D2H, 13.03 GB/s
+both at once. See [Results](#results) and
+[lab-log/2026-11-20-dma.md](../../lab-log/2026-11-20-dma.md).
 
 ## Results
 
@@ -258,9 +263,32 @@ slice plus a routing register; registered hard-IP status inputs; a 4-copy write 
 tree in front of the 16 RAM groups; a registered in-flight compare. Their bitstreams were
 not loaded.
 
-### Hardware
+### Hardware (2026-11-20)
 
-(filled in after the hardware run)
+Host: ASUS X99-E, i7-5820K, Windows 10, driver 1.1. Negotiated: Gen3 x8, MPS 256 bytes,
+MRRS 512 bytes; host buffers above 4 GB. All 104 bench points and a 62-second
+bidirectional run (about 403 GB each way) verified with 0 bad dwords. Pattern mode,
+`fpga` GB/s (10⁹ bytes/s, first descriptor to last completion):
+
+| Size | H2D | D2H | both: H2D + D2H |
+|------|-----|-----|-----------------|
+| 4 KB | 3.146 | 4.927 | 2.775 + 4.836 = 5.549 |
+| 64 KB | 6.584 | 6.832 | 6.421 + 6.406 = 12.783 |
+| 1 MB | 7.068 | 7.035 | 7.008 + 6.507 = 13.014 |
+| 64 MB | **7.105** | **7.065** | 7.018 + 6.516 = **13.031** |
+
+RAM mode matches pattern mode within 0.03 GB/s. Die temperature 48.3 °C idle, 51.7 °C
+after the 62-second run (fan on the heatsink).
+
+**Core clock is not 250 MHz on this host.** The core clock is 2.5 × the PCIe reference
+clock from the motherboard; on the lab host it measured 255.02 MHz against the host
+timer (reference clock about 102.0 MHz, probably a BIOS BCLK setting; not checked). The
+host tool converts cycles with the measured clock. With the 250 MHz timing constraint
+the setup slack of +0.135 ns becomes about +0.056 ns at 3.921 ns.
+
+Full table, interpretation and the clock measurement:
+[lab-log/2026-11-20-dma.md](../../lab-log/2026-11-20-dma.md), raw data:
+[lab-log/2026-11-20-dma-bench.csv](../../lab-log/2026-11-20-dma-bench.csv).
 
 ## Attribution
 

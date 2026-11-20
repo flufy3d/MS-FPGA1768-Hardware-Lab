@@ -6,9 +6,11 @@
 > tested offline only (`list`, `selftest`, `--help`, plus a mock BAR0 backend); not yet
 > run against the card. The I2C module (`cap_i2c.c`, 2026-11-19) is tested offline against
 > a mock of the project 06 register block only. The DMA module (`cap_dma.c`, 2026-11-19)
-> and the driver 1.1 calls it uses are tested offline against a mock of the project 07
-> engine only (`dma info`, `run`, `bench`, data-error and timeout paths); not yet run on
-> the card. Linux backend built, not tested on hardware; it has no DMA support.
+> and the driver 1.1 calls it uses were tested offline against a mock of the project 07
+> engine and then verified on the card on 2026-11-20 (`dma info`, `run`, `bench`; see
+> [lab-log/2026-11-20-dma.md](../lab-log/2026-11-20-dma.md)); the data-error and timeout
+> paths are tested on the mock only. Linux backend built, not tested on hardware; it has
+> no DMA support.
 > Source: written for this repository
 
 A portable C99 command-line tool for the lab's PCIe designs (vendor/device ID

@@ -7,7 +7,7 @@ exposes IOCTLs to the user-mode tools (`..\user\pcie_bar_test.exe`, `host\fpga17
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-11-17 | BAR0 info, 32-bit read, 32-bit write |
-| 1.1 | 2026-11-19 | configuration space read; 64-bit DMA enabler and 4 MB common buffers mapped into the caller (for `projects/07_dma`). The 1.0 IOCTLs and structs are unchanged. Built, not yet tested on hardware |
+| 1.1 | 2026-11-19 | configuration space read; 64-bit DMA enabler and 4 MB common buffers mapped into the caller (for `projects/07_dma`). The 1.0 IOCTLs and structs are unchanged. Verified on hardware 2026-11-20 with project 07 (configuration reads, 34 × 4 MB buffers above 4 GB, DMA at 7.1 GB/s each way; [lab-log/2026-11-20-dma.md](../../../lab-log/2026-11-20-dma.md)) |
 
 This is a **test driver**. It is self-signed and only loads with Windows test
 signing enabled and Secure Boot disabled. Do not distribute it.
