@@ -179,16 +179,20 @@ DMA (`dma ...`, project 07):
 | Command | What it does |
 |---------|--------------|
 | `dma info` | driver DMA state, PCI command register, link and **MPS / MRRS / extended tags** read from the PCI Express capability in configuration space, engine constants and state |
-| `dma run [--dir h2d\|d2h\|both] [--mode pattern\|ram] [--size N] [--desc N] [--loops N] [--repeat N]` | one test point, timed and verified |
+| `dma run [--dir h2d\|d2h\|both] [--mode pattern\|ram] [--size N] [--desc N] [--loops N] [--repeat N] [--nominal-clock]` | one test point, timed and verified |
 | `dma bench [--dir LIST] [--mode LIST] [--min N] [--max N] [--csv FILE]` | matrix: modes x directions x power-of-two sizes (default 4K..64M); prints die temperature before and after |
 
 The tool allocates 4 MB common buffers from the driver, writes their bus addresses into
 the engine's chunk table, starts both directions with one register write and polls the
 16-byte status record the FPGA writes into host memory (no interrupts). It reports
-`fpga` GB/s (first descriptor to last completion, counted by the FPGA's 250 MHz clock),
+`fpga` GB/s (first descriptor to last completion, counted by the FPGA core clock),
 `app` GB/s (host `QueryPerformanceCounter` from the start write to the status record),
 `data` GB/s (first to last Avalon data beat) and, for simultaneous transfers, the combined
-H2D + D2H rate. GB/s = 10^9 bytes per second. `pattern` mode streams to / from the
+H2D + D2H rate. GB/s = 10^9 bytes per second. The core clock is 2.5 × the PCIe reference
+clock from the host board, so its real rate is measured against `QueryPerformanceCounter`
+for 0.5 s at the start and used to convert cycles (`--nominal-clock` uses the 250 MHz
+`CLK_HZ` register instead); on the lab host it measured 255.02 MHz (2026-11-20, see
+[lab-log/2026-11-20-dma.md](../lab-log/2026-11-20-dma.md)). `pattern` mode streams to / from the
 address-pattern checker and generator (any size, H2D checked in the FPGA, D2H checked in
 host memory); `ram` mode uses the on-chip RAM and verifies by loopback. Details:
 [projects/07_dma/README.md](../projects/07_dma/README.md).

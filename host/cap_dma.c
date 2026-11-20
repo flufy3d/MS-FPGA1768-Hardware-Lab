@@ -32,6 +32,12 @@
  * ("app" columns, includes the start IOCTL and the polling latency). GB/s are
  * 10^9 bytes per second.
  *
+ * The core clock is 2.5 x the PCIe reference clock, which comes from the host
+ * board and need not be 100 MHz (the lab host's measured about 102.0 MHz on
+ * 2026-11-20). Cycle counts are therefore converted with the clock measured
+ * against the host timer (FPGA 64-bit counter over 0.5 s); --nominal-clock
+ * uses CLK_HZ from BAR0 instead.
+ *
  * Host buffers: driver common buffers of 4 MB (chunk table entries):
  *   chunk 0          status records (H2D at +0, D2H at +64)
  *   1 .. NB          H2D source
@@ -60,7 +66,8 @@ static unsigned        g_npool;
 static uint32_t        g_chunk = 4u << 20;
 static unsigned        g_nb;           /* chunks per direction buffer */
 static uint32_t        g_seq;
-static uint32_t        g_clk_hz;
+static double          g_clk_hz;       /* used to convert cycles to seconds */
+static uint32_t        g_clk_nom;      /* CLK_HZ register */
 static uint32_t        g_ram_bytes;
 static uint64_t        g_pat_base;
 
@@ -639,7 +646,8 @@ static int dma_setup(uint64_t max_size)
                 (unsigned)rd(reg("regs.dma_version")), (unsigned)reg("dma.version"));
         exit(3);
     }
-    g_clk_hz    = rd(reg("regs.dma_clk_hz"));
+    g_clk_nom   = rd(reg("regs.dma_clk_hz"));
+    g_clk_hz    = g_clk_nom;
     g_ram_bytes = rd(reg("regs.dma_ram_bytes"));
     g_pat_base  = (uint64_t)reg("dma.pat_base_hi") << 32;
     uint32_t hw_chunk = 1u << rd(reg("regs.dma_chunk_shift"));
@@ -677,6 +685,41 @@ static int dma_setup(uint64_t max_size)
            (unsigned)(g_chunk >> 20), (unsigned long long)above, (unsigned long long)g_pool[0].bus);
     g_seq = (uint32_t)(plat_now() * 1000.0) << 8;
     return 0;
+}
+
+/* FPGA 64-bit cycle counter (a TIME_LO read latches TIME_HI) */
+static uint64_t fpga_time(void)
+{
+    uint32_t lo = rd(reg("regs.dma_time_lo"));
+    uint32_t hi = rd(reg("regs.dma_time_lo") + 4);
+    return (uint64_t)hi << 32 | lo;
+}
+
+/*
+ * Core clock measured against the host timer over about ms milliseconds. Each
+ * counter read is bracketed by two host timestamps; of five tries the one with
+ * the shortest bracket is kept and its midpoint used.
+ */
+static double measure_clk(unsigned ms)
+{
+    double ta[2] = {0, 0}, best[2] = {1e9, 1e9};
+    uint64_t ca[2] = {0, 0};
+    for (int k = 0; k < 2; k++) {
+        if (k)
+            plat_sleep_ms(ms);
+        for (int t = 0; t < 5; t++) {
+            double a = plat_now();
+            uint64_t c = fpga_time();
+            double b = plat_now();
+            if (b - a < best[k]) {
+                best[k] = b - a;
+                ta[k] = (a + b) / 2;
+                ca[k] = c;
+            }
+        }
+    }
+    double dt = ta[1] - ta[0];
+    return dt > 0 ? (double)(ca[1] - ca[0]) / dt : 0;
 }
 
 static void dma_teardown(void)
@@ -721,8 +764,10 @@ static void dma_usage(void)
            "  --repeat N                     host repetitions per point (run 1; bench automatic)\n"
            "  --seed HEX                     pattern seed (default 1234ABCD)\n"
            "  --no-verify                    skip data checks\n"
+           "  --nominal-clock                convert cycles with CLK_HZ, not the measured clock\n"
            "  --csv FILE                     bench: append one CSV line per point and direction\n"
-           "GB/s = 1e9 bytes/s. fpga = first descriptor to last completion (250 MHz counter);\n"
+           "GB/s = 1e9 bytes/s. fpga = first descriptor to last completion (FPGA core clock\n"
+           "counter, converted with the clock measured against the host timer);\n"
            "app = host time from the start write to the status record in host memory;\n"
            "data = first to last Avalon data beat in the FPGA; both = H2D + D2H bytes over the\n"
            "combined FPGA window.\n");
@@ -742,6 +787,8 @@ static int cmd_info(void)
     print_pcie_cfg();
     if (need_cap(CAP_DMA, "dma info") != 0)
         return 3;
+    printf("Clock:   %.4f MHz measured against the host timer (CLK_HZ %u)\n", measure_clk(500) / 1e6,
+           (unsigned)rd(reg("regs.dma_clk_hz")));
     printf("Engine:  VERSION 0x%08X, PORT %u, clock %u Hz, RAM %u KB, chunk table %u x %u KB\n",
            (unsigned)rd(reg("regs.dma_version")), (unsigned)rd(reg("regs.port_index")),
            (unsigned)rd(reg("regs.dma_clk_hz")), (unsigned)(rd(reg("regs.dma_ram_bytes")) >> 10),
@@ -775,13 +822,14 @@ int cmd_dma(int argc, char **argv)
     uint64_t size = 4u << 20, smin = 4096, smax = 64u << 20, desc = 512 * 1024;
     unsigned loops = 1, repeat = 0;
     uint32_t seed = 0x1234ABCDu;
-    int verify = 1;
+    int verify = 1, nominal_clk = 0;
     const char *csv = NULL;
 
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
         const char *v = i + 1 < argc ? argv[i + 1] : NULL;
         if (!strcmp(a, "--no-verify")) { verify = 0; continue; }
+        if (!strcmp(a, "--nominal-clock")) { nominal_clk = 1; continue; }
         if (!v) { fprintf(stderr, "dma: %s needs a value\n", a); return 2; }
         i++;
         if (!strcmp(a, "--dir")) dirs = v;
@@ -849,9 +897,15 @@ int cmd_dma(int argc, char **argv)
     if (bar_get_info(g_bar, &bi) == 0)
         print_link(&bi);
     print_pcie_cfg();
-    printf("Engine:  clock %u Hz, RAM %u KB, pattern window 0x%llX, seed 0x%08X, loops %u\n",
-           (unsigned)g_clk_hz, (unsigned)(g_ram_bytes >> 10), (unsigned long long)g_pat_base,
-           (unsigned)seed, loops);
+    double meas = measure_clk(500);
+    int use_meas = !nominal_clk && meas > 0.5 * g_clk_nom && meas < 2.0 * g_clk_nom;
+    if (use_meas)
+        g_clk_hz = meas;
+    printf("Engine:  clock %u Hz nominal, %.4f MHz measured against the host timer (%+.2f %%); "
+           "GB/s use the %s clock\n", (unsigned)g_clk_nom, meas / 1e6,
+           100.0 * (meas / g_clk_nom - 1.0), use_meas ? "measured" : "nominal");
+    printf("         RAM %u KB, pattern window 0x%llX, seed 0x%08X, loops %u\n",
+           (unsigned)(g_ram_bytes >> 10), (unsigned long long)g_pat_base, (unsigned)seed, loops);
     printf("Start:   %s\n", ts);
     print_temp_line();
 
@@ -866,7 +920,8 @@ int cmd_dma(int argc, char **argv)
             dma_teardown();
             return 2;
         }
-        fprintf(g_csv, "# %s fpga1768 dma %s, seed 0x%08X, loops %u\n", ts, sub, (unsigned)seed, loops);
+        fprintf(g_csv, "# %s fpga1768 dma %s, seed 0x%08X, loops %u, clock %.0f Hz (%s)\n", ts, sub, (unsigned)seed,
+                loops, g_clk_hz, g_clk_hz == (double)g_clk_nom ? "nominal" : "measured");
         fprintf(g_csv, "mode,dirs,dir,size,desc,loops,runs,descriptors,fpga_gbps,fpga_min,fpga_max,"
                        "app_gbps,app_best,data_gbps,both_gbps,check\n");
     }
