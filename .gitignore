@@ -92,3 +92,10 @@ projects/06_i2c_telemetry/*.log
 projects/06_i2c_telemetry/sim/work/
 projects/06_i2c_telemetry/sim/transcript
 projects/06_i2c_telemetry/sim/*.log
+projects/07_dma/dma_sys/
+projects/07_dma/ip/dma_sys/*/
+projects/07_dma/*.log
+projects/07_dma/sim/work/
+projects/07_dma/sim/transcript
+projects/07_dma/sim/*.log
+projects/07_dma/sim/*.wlf
